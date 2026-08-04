@@ -7,7 +7,8 @@ define('DB_NAME', 'sipanda_ptm');
 define('DB_USER', 'root');
 define('DB_PASS', 'juan123');
 
-// Lokasi file Excel sumber data (ditimpa tiap kali admin upload file baru).
+// Lokasi file Excel sumber data yang sedang aktif dipakai dashboard.
+// File lama tetap disimpan di uploads/history/ sebagai arsip, tanpa dihapus saat upload baru.
 // Dashboard & API membaca langsung dari file ini, tidak ada tabel data di database.
 define('EXCEL_DATA_PATH', __DIR__ . '/../uploads/data_sipanda.xlsx');
 

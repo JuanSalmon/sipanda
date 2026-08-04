@@ -16,6 +16,33 @@
 
     <main class="dashboard">
 
+        <section class="toolbar-card" aria-label="Filter dashboard">
+            <div class="toolbar-title">Filter Dashboard</div>
+            <div class="toolbar-controls">
+                <label class="filter-control">
+                    <span class="filter-label">Puskesmas</span>
+                    <select id="puskesmasFilter" class="filter-select">
+                        <option value="Semua">Semua Puskesmas</option>
+                    </select>
+                </label>
+                <label class="filter-control">
+                    <span class="filter-label">Periode</span>
+                    <select id="periodeType" class="filter-select filter-select--small">
+                        <option value="bulanan">Bulanan</option>
+                        <option value="triwulan">Triwulan</option>
+                        <option value="semester">Semester</option>
+                        <option value="tahunan">Tahunan</option>
+                    </select>
+                </label>
+                <label class="filter-control">
+                    <span class="filter-label">Nilai Periode</span>
+                    <select id="periodeValue" class="filter-select">
+                        <option value="all">Pilih periode</option>
+                    </select>
+                </label>
+            </div>
+        </section>
+
         <section class="scoreboards" id="scoreboards">
             <!-- 4 kartu scoreboard diisi via JS -->
         </section>

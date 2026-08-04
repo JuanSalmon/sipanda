@@ -10,132 +10,417 @@ const INDIKATOR_COLOR = {
     'Diabetes Mellitus': '#a855f7',
     'HPV DNA': '#06b6d4',
 };
+const FALLBACK_INDICATOR_COLORS = ['#14b8a6', '#f97316', '#8b5cf6', '#0ea5e9', '#84cc16', '#e11d48'];
+const MONTH_LABELS = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'Mei',6:'Jun',7:'Jul',8:'Agu',9:'Sep',10:'Okt',11:'Nov',12:'Des'};
 
-let fullTabelData = [];
+let dashboardRows = [];
 let doughnutChartInstance = null;
-let doughnutData = {};
+let lineChartInstance = null;
+let barChartInstance = null;
+let currentFilteredRows = [];
+const FILTER_STATE = {
+    puskesmas: 'Semua',
+    periodeType: 'bulanan',
+    periodeValue: 'all',
+};
+
+function getUniquePuskesmas(rows = dashboardRows) {
+    return [...new Set(rows.map(row => row.puskesmas).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function getUniqueIndicators(rows = dashboardRows) {
+    return [...new Set(rows.map(row => row.indikator).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function getIndicatorColor(indikator) {
+    if (INDIKATOR_COLOR[indikator]) return INDIKATOR_COLOR[indikator];
+    const index = getUniqueIndicators().indexOf(indikator);
+    return FALLBACK_INDICATOR_COLORS[index % FALLBACK_INDICATOR_COLORS.length] || '#2563eb';
+}
 
 async function loadDashboard() {
     const res = await fetch('api/data.php');
     const data = await res.json();
+    dashboardRows = Array.isArray(data.raw_rows) ? data.raw_rows : [];
 
-    renderScoreboard(data.scoreboard);
-    renderLineChart(data.line_chart);
-    renderBarChart(data.bar_chart);
-
-    doughnutData = data.doughnut;
-    setupDoughnutFilter(Object.keys(doughnutData));
-    renderDoughnut('Semua');
-
-    fullTabelData = data.tabel;
-    renderTabel(fullTabelData);
+    setupFilterControls();
+    syncDoughnutFilter();
+    renderDashboard();
 }
 
-function renderScoreboard(scoreboard) {
+function setupFilterControls() {
+    const puskesmasSelect = document.getElementById('puskesmasFilter');
+    if (puskesmasSelect) {
+        const uniquePuskesmas = ['Semua', ...getUniquePuskesmas()];
+        puskesmasSelect.innerHTML = uniquePuskesmas.map(item => `<option value="${item}">${item === 'Semua' ? 'Semua Puskesmas' : item}</option>`).join('');
+        puskesmasSelect.value = FILTER_STATE.puskesmas;
+        puskesmasSelect.addEventListener('change', () => {
+            FILTER_STATE.puskesmas = puskesmasSelect.value;
+            renderDashboard();
+        });
+    }
+
+    const periodeType = document.getElementById('periodeType');
+    const periodeValue = document.getElementById('periodeValue');
+    if (periodeType && periodeValue) {
+        periodeType.addEventListener('change', () => {
+            FILTER_STATE.periodeType = periodeType.value;
+            FILTER_STATE.periodeValue = 'all';
+            buildPeriodOptions();
+            renderDashboard();
+        });
+
+        buildPeriodOptions();
+        periodeValue.addEventListener('change', () => {
+            FILTER_STATE.periodeValue = periodeValue.value;
+            renderDashboard();
+        });
+    }
+}
+
+function buildPeriodOptions() {
+    const periodeType = document.getElementById('periodeType');
+    const periodeValue = document.getElementById('periodeValue');
+    if (!periodeType || !periodeValue) return;
+
+    const type = periodeType.value;
+    const knownYears = [...new Set(dashboardRows.map(row => String(row.tahun)))].sort().reverse();
+    const fallbackYear = knownYears[0] || '2026';
+    const knownMonths = [...new Set(dashboardRows.map(row => Number(row.bulan)).filter(month => month >= 1 && month <= 12))].sort((a, b) => a - b);
+
+    let options = [{ value: 'all', label: 'Semua Periode' }];
+
+    if (type === 'bulanan') {
+        const months = knownMonths.length ? knownMonths : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        months.forEach(month => {
+            options.push({ value: String(month), label: `${MONTH_LABELS[month] || month} ${fallbackYear}` });
+        });
+    }
+    if (type === 'triwulan') {
+        ['tw-1', 'tw-2', 'tw-3', 'tw-4'].forEach((code, index) => options.push({ value: code, label: `Triwulan ${index + 1} (${fallbackYear})` }));
+    }
+    if (type === 'semester') {
+        ['sem-1', 'sem-2'].forEach((code, index) => options.push({ value: code, label: `Semester ${index + 1} (${fallbackYear})` }));
+    }
+    if (type === 'tahunan') {
+        const years = knownYears.length ? knownYears : ['2026', '2025', '2024'];
+        years.forEach(year => options.push({ value: `th-${year}`, label: `Tahun ${year}` }));
+    }
+
+    periodeValue.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('');
+    FILTER_STATE.periodeValue = options.some(opt => opt.value === FILTER_STATE.periodeValue) ? FILTER_STATE.periodeValue : 'all';
+    periodeValue.value = FILTER_STATE.periodeValue;
+}
+
+function getFilteredRows() {
+    return dashboardRows.filter((row) => {
+        const puskesmasMatch = FILTER_STATE.puskesmas === 'Semua' || row.puskesmas === FILTER_STATE.puskesmas;
+        const periodeMatch = matchesPeriod(row, FILTER_STATE.periodeType, FILTER_STATE.periodeValue);
+        return puskesmasMatch && periodeMatch;
+    });
+}
+
+function matchesPeriod(row, type, value) {
+    if (value === 'all' || !value) return true;
+
+    if (type === 'bulanan') {
+        return Number(row.bulan) === Number(value);
+    }
+
+    if (type === 'triwulan') {
+        const month = Number(row.bulan);
+        if (value === 'tw-1') return month >= 1 && month <= 3;
+        if (value === 'tw-2') return month >= 4 && month <= 6;
+        if (value === 'tw-3') return month >= 7 && month <= 9;
+        if (value === 'tw-4') return month >= 10 && month <= 12;
+    }
+
+    if (type === 'semester') {
+        const month = Number(row.bulan);
+        if (value === 'sem-1') return month >= 1 && month <= 6;
+        if (value === 'sem-2') return month >= 7 && month <= 12;
+    }
+
+    if (type === 'tahunan') {
+        return String(row.tahun) === String(value).replace('th-', '');
+    }
+
+    return true;
+}
+
+function formatCategoryValue(rows) {
+    const totalCapaian = rows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
+    const totalTarget = rows.reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0);
+    if (totalTarget <= 0) return 0;
+    return Number(((totalCapaian / totalTarget) * 100).toFixed(1));
+}
+
+function getStatusFromPercent(value) {
+    if (value >= 100) return 'Tercapai';
+    if (value >= 70) return 'Perlu Ditingkatkan';
+    return 'Belum Tercapai';
+}
+
+function renderDashboard() {
+    currentFilteredRows = getFilteredRows();
+    const groupedForTable = buildTableRows(currentFilteredRows);
+
+    renderScoreboard(currentFilteredRows);
+    renderLineChart(currentFilteredRows);
+    renderBarChart(currentFilteredRows);
+    renderDoughnut(currentFilteredRows);
+    renderTabel(groupedForTable);
+}
+
+function renderScoreboard(rows) {
     const container = document.getElementById('scoreboards');
-    container.innerHTML = scoreboard.map(s => {
-        const persen = parseFloat(s.rata_persen) || 0;
-        const status = persen >= 100 ? 'Tercapai' : (persen >= 70 ? 'Perlu Ditingkatkan' : 'Belum Tercapai');
-        return `
-            <div class="score-card" style="border-top-color:${STATUS_COLOR[status]}">
-                <h4>${s.indikator}</h4>
-                <div class="score-value">${persen.toFixed(1)}%</div>
-                <div class="score-sub">${s.total_capaian} / ${s.total_target} pasien</div>
-                <div class="score-badge" style="background:${STATUS_COLOR[status]}">${status}</div>
-            </div>`;
-    }).join('');
+    if (!container) return;
+
+    const indicatorGroups = rows.reduce((acc, row) => {
+        acc[row.indikator] = acc[row.indikator] || [];
+        acc[row.indikator].push(row);
+        return acc;
+    }, {});
+
+    const scoreboard = Object.keys(indicatorGroups).map((indikator) => {
+        const indicatorRows = indicatorGroups[indikator];
+        const persen = formatCategoryValue(indicatorRows);
+        const status = getStatusFromPercent(persen);
+        const totalCapaian = indicatorRows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
+        const totalTarget = indicatorRows.reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0);
+
+        return {
+            indikator,
+            rata_persen: persen,
+            total_capaian: totalCapaian,
+            total_target: totalTarget,
+            status,
+        };
+    });
+
+    container.innerHTML = scoreboard.map((s) => `
+        <div class="score-card" style="border-top-color:${STATUS_COLOR[s.status]}">
+            <h4>${s.indikator}</h4>
+            <div class="score-value">${Number(s.rata_persen).toFixed(1)}%</div>
+            <div class="score-sub">${s.total_capaian} / ${s.total_target} pasien</div>
+            <div class="score-badge" style="background:${STATUS_COLOR[s.status]}">${s.status}</div>
+        </div>`).join('');
 }
 
-function renderLineChart(lineData) {
-    const bulanLabel = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'Mei',6:'Jun'};
-    const indikators = [...new Set(lineData.map(d => d.indikator))];
+function renderLineChart(rows) {
+    const lineData = buildLineChartRows(rows);
+    const lines = [...new Set(lineData.map(item => item.indikator))];
+    const months = [...new Set(rows.map(row => Number(row.bulan)))].sort((a, b) => a - b);
 
-    const datasets = indikators.map(ind => {
-        const rows = lineData.filter(d => d.indikator === ind);
-        const byBulan = {};
-        rows.forEach(r => byBulan[r.bulan] = parseFloat(r.rata_persen));
+    const datasets = lines.map((indikator) => {
+        const byMonth = {};
+        lineData.filter(item => item.indikator === indikator).forEach(item => {
+            byMonth[item.bulan] = Number(item.rata_persen);
+        });
+
         return {
-            label: ind,
-            data: [1,2,3,4,5,6].map(b => byBulan[b] ?? null),
-            borderColor: INDIKATOR_COLOR[ind] || '#888',
+            label: indikator,
+            data: months.map(b => byMonth[b] ?? null),
+            borderColor: getIndicatorColor(indikator),
             backgroundColor: 'transparent',
             tension: 0.3,
         };
     });
 
-    new Chart(document.getElementById('lineChart'), {
+    if (lineChartInstance) lineChartInstance.destroy();
+    lineChartInstance = new Chart(document.getElementById('lineChart'), {
         type: 'line',
-        data: { labels: [1,2,3,4,5,6].map(b => bulanLabel[b]), datasets },
+        data: { labels: months.map(b => MONTH_LABELS[b] || b), datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } }
-        }
+            plugins: { legend: { position: 'bottom' } },
+        },
     });
 }
 
-function renderBarChart(barData) {
-    new Chart(document.getElementById('barChart'), {
+function buildLineChartRows(rows) {
+    const out = [];
+    const indicatorList = getUniqueIndicators(rows);
+    indicatorList.forEach((indikator) => {
+        const monthGroups = rows.filter(row => row.indikator === indikator).reduce((acc, row) => {
+            acc[row.bulan] = acc[row.bulan] || [];
+            acc[row.bulan].push(row);
+            return acc;
+        }, {});
+
+        Object.keys(monthGroups).forEach((bulan) => {
+            out.push({
+                indikator,
+                bulan: Number(bulan),
+                rata_persen: formatCategoryValue(monthGroups[bulan]),
+            });
+        });
+    });
+    return out;
+}
+
+function renderBarChart(rows) {
+    const rankRows = buildBarChartRows(rows);
+    if (barChartInstance) barChartInstance.destroy();
+
+    barChartInstance = new Chart(document.getElementById('barChart'), {
         type: 'bar',
         data: {
-            labels: barData.map(d => d.puskesmas),
+            labels: rankRows.map(item => item.puskesmas),
             datasets: [{
                 label: 'Skor Gabungan (%)',
-                data: barData.map(d => d.skor_gabungan),
-                backgroundColor: barData.map(d => {
-                    const v = parseFloat(d.skor_gabungan);
-                    return v >= 100 ? STATUS_COLOR['Tercapai'] : (v >= 70 ? STATUS_COLOR['Perlu Ditingkatkan'] : STATUS_COLOR['Belum Tercapai']);
+                data: rankRows.map(item => item.skor_gabungan),
+                backgroundColor: rankRows.map(item => {
+                    const status = getStatusFromPercent(item.skor_gabungan);
+                    return STATUS_COLOR[status];
                 }),
-            }]
+            }],
         },
         options: {
             indexAxis: 'y',
             responsive: true,
-            plugins: { legend: { display: false } }
-        }
+            plugins: { legend: { display: false } },
+        },
     });
 }
 
-function setupDoughnutFilter(keys) {
-    const select = document.getElementById('doughnutFilter');
-    select.innerHTML = keys.map(k => `<option value="${k}">${k}</option>`).join('');
-    select.addEventListener('change', () => renderDoughnut(select.value));
+function buildBarChartRows(rows) {
+    const grouped = rows.reduce((acc, row) => {
+        acc[row.puskesmas] = acc[row.puskesmas] || [];
+        acc[row.puskesmas].push(row);
+        return acc;
+    }, {});
+
+    const indicatorList = getUniqueIndicators(rows);
+    const result = Object.keys(grouped).map((puskesmas) => {
+        const indikatorValues = indicatorList.map((indikator) => {
+            const subset = grouped[puskesmas].filter(row => row.indikator === indikator);
+            return subset.length ? formatCategoryValue(subset) : 0;
+        }).filter(value => value > 0);
+
+        const skor_gabungan = indikatorValues.length
+            ? Number((indikatorValues.reduce((sum, value) => sum + value, 0) / indikatorValues.length).toFixed(1))
+            : 0;
+
+        return { puskesmas, skor_gabungan };
+    }).sort((a, b) => b.skor_gabungan - a.skor_gabungan);
+
+    return result;
 }
 
-function renderDoughnut(key) {
-    const d = doughnutData[key] || {};
+function renderDoughnut(rows) {
+    const doughnutKey = document.getElementById('doughnutFilter')?.value || 'Semua';
+    const data = buildDoughnutRows(rows);
+    const selected = data[doughnutKey] || { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0 };
     const labels = ['Tercapai', 'Perlu Ditingkatkan', 'Belum Tercapai'];
-    const values = labels.map(l => d[l] || 0);
+    const values = labels.map(label => selected[label] || 0);
 
     if (doughnutChartInstance) doughnutChartInstance.destroy();
     doughnutChartInstance = new Chart(document.getElementById('doughnutChart'), {
         type: 'doughnut',
         data: {
             labels,
-            datasets: [{ data: values, backgroundColor: labels.map(l => STATUS_COLOR[l]) }]
+            datasets: [{ data: values, backgroundColor: labels.map(label => STATUS_COLOR[label]) }],
         },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } },
     });
+}
+
+function buildDoughnutRows(rows) {
+    const doughnut = {
+        Semua: { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0 },
+    };
+
+    getUniqueIndicators(rows).forEach((indikator) => {
+        doughnut[indikator] = { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0 };
+    });
+
+    const groupedByPuskesmasAndIndic = rows.reduce((acc, row) => {
+        const key = `${row.puskesmas}::${row.indikator}`;
+        acc[key] = acc[key] || [];
+        acc[key].push(row);
+        return acc;
+    }, {});
+
+    Object.keys(groupedByPuskesmasAndIndic).forEach((key) => {
+        const [puskesmas, indikator] = key.split('::');
+        const persen = formatCategoryValue(groupedByPuskesmasAndIndic[key]);
+        const status = getStatusFromPercent(persen);
+
+        doughnut.Semua[status] += 1;
+        if (doughnut[indikator]) {
+            doughnut[indikator][status] += 1;
+        }
+    });
+
+    return doughnut;
 }
 
 function renderTabel(rows) {
     const tbody = document.querySelector('#monitorTable tbody');
-    tbody.innerHTML = rows.map(r => `
+    if (!tbody) return;
+
+    const query = document.getElementById('searchInput')?.value?.toLowerCase() || '';
+    const source = query
+        ? rows.filter(row => row.puskesmas.toLowerCase().includes(query) || row.indikator.toLowerCase().includes(query))
+        : rows;
+
+    tbody.innerHTML = source.map((row) => `
         <tr>
-            <td>${r.puskesmas}</td>
-            <td>${r.indikator}</td>
-            <td>${r.total_capaian} / ${r.total_target}</td>
-            <td>${parseFloat(r.rata_persen).toFixed(1)}%</td>
-            <td><span class="badge" style="background:${STATUS_COLOR[r.status]}">${r.status}</span></td>
+            <td>${row.puskesmas}</td>
+            <td>${row.indikator}</td>
+            <td>${row.total_capaian} / ${row.total_target}</td>
+            <td>${Number(row.rata_persen).toFixed(1)}%</td>
+            <td><span class="badge" style="background:${STATUS_COLOR[row.status]}">${row.status}</span></td>
         </tr>`).join('');
 }
 
-document.getElementById('searchInput')?.addEventListener('input', (e) => {
-    const q = e.target.value.toLowerCase();
-    const filtered = fullTabelData.filter(r =>
-        r.puskesmas.toLowerCase().includes(q) || r.indikator.toLowerCase().includes(q)
-    );
-    renderTabel(filtered);
+function buildTableRows(rows) {
+    const aggByPkmIndic = rows.reduce((acc, row) => {
+        const key = `${row.puskesmas}::${row.indikator}`;
+        acc[key] = acc[key] || [];
+        acc[key].push(row);
+        return acc;
+    }, {});
+
+    const result = Object.keys(aggByPkmIndic).map((key) => {
+        const [puskesmas, indikator] = key.split('::');
+        const subset = aggByPkmIndic[key];
+        const rataPersen = formatCategoryValue(subset);
+        const status = getStatusFromPercent(rataPersen);
+
+        return {
+            puskesmas,
+            indikator,
+            rata_persen: rataPersen,
+            total_capaian: subset.reduce((sum, row) => sum + Number(row.capaian || 0), 0),
+            total_target: subset.reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0),
+            status,
+        };
+    });
+
+    return result.sort((a, b) => a.puskesmas.localeCompare(b.puskesmas) || a.indikator.localeCompare(b.indikator));
+}
+
+function setupDoughnutFilter(keys) {
+    const select = document.getElementById('doughnutFilter');
+    if (!select) return;
+
+    const options = ['Semua', ...keys.filter(key => key !== 'Semua')];
+    select.innerHTML = options.map(key => `<option value="${key}">${key}</option>`).join('');
+    select.addEventListener('change', () => renderDoughnut(currentFilteredRows));
+}
+
+function syncDoughnutFilter() {
+    const select = document.getElementById('doughnutFilter');
+    if (!select) return;
+    const keys = ['Semua', ...getUniqueIndicators()];
+    setupDoughnutFilter(keys);
+}
+
+document.getElementById('searchInput')?.addEventListener('input', () => {
+    renderTabel(buildTableRows(currentFilteredRows));
 });
 
 loadDashboard();

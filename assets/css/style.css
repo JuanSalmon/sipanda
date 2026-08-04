@@ -85,6 +85,50 @@ body {
 /* Dashboard layout */
 .dashboard { padding: 28px 24px 60px; max-width: 1300px; margin: 0 auto; }
 
+.toolbar-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px 18px;
+    margin-bottom: 18px;
+}
+.toolbar-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-bottom: 12px;
+}
+.toolbar-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+.filter-control {
+    display: grid;
+    gap: 6px;
+}
+.filter-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+}
+.filter-select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--card-sunken);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13.5px;
+}
+.filter-select--small { max-width: 160px; }
+
 .dashboard-section-title {
     font-family: 'Space Grotesk', sans-serif;
     font-size: 13px;
