@@ -31,12 +31,23 @@ if (empty($hasil['rows']) && !empty($hasil['errors'])) {
     exit;
 }
 
-// Lolos validasi -> pindahkan ke lokasi tetap yang dibaca dashboard & API
+// Lolos validasi -> simpan file baru ke arsip, lalu aktifkan salinannya sebagai file yang dibaca dashboard.
 $uploadDir = dirname(EXCEL_DATA_PATH);
+$archiveDir = $uploadDir . '/history';
 if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+if (!is_dir($archiveDir)) mkdir($archiveDir, 0755, true);
 
-if (!move_uploaded_file($tmpPath, EXCEL_DATA_PATH)) {
-    echo json_encode(['success' => false, 'message' => 'Gagal menyimpan file ke server.']);
+$fileNameSafe = preg_replace('/[^A-Za-z0-9._-]+/', '_', pathinfo($namaFileAsli, PATHINFO_FILENAME));
+$fileNameSafe = $fileNameSafe !== '' ? $fileNameSafe : 'excel-data';
+$archivePath = $archiveDir . '/' . date('YmdHis') . '_' . $fileNameSafe . '.' . $ext;
+
+if (!move_uploaded_file($tmpPath, $archivePath)) {
+    echo json_encode(['success' => false, 'message' => 'Gagal menyimpan file arsip ke server.']);
+    exit;
+}
+
+if (!copy($archivePath, EXCEL_DATA_PATH)) {
+    echo json_encode(['success' => false, 'message' => 'Gagal mengaktifkan file Excel baru untuk dashboard.']);
     exit;
 }
 
