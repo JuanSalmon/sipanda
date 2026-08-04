@@ -20,10 +20,24 @@
             <!-- 4 kartu scoreboard diisi via JS -->
         </section>
 
-        <section class="charts-row">
+        <p class="dashboard-section-title">Tren Capaian</p>
+        <section class="charts-row" style="grid-template-columns: 1fr;">
             <div class="chart-card">
                 <h3>Tren Rata-rata Capaian per Bulan</h3>
-                <canvas id="lineChart"></canvas>
+                <div class="chart-canvas-box chart-canvas-box--short">
+                    <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <p class="dashboard-section-title">Distribusi &amp; Ranking</p>
+        <section class="charts-row" style="grid-template-columns: 1fr 1.4fr;">
+            <div class="chart-card doughnut-card">
+                <div class="doughnut-header">
+                    <h3>Distribusi Status</h3>
+                    <select id="doughnutFilter"></select>
+                </div>
+                <canvas id="doughnutChart"></canvas>
             </div>
             <div class="chart-card">
                 <h3>Ranking Puskesmas (Skor Gabungan 4 Indikator)</h3>
@@ -31,14 +45,8 @@
             </div>
         </section>
 
-        <section class="charts-row">
-            <div class="chart-card doughnut-card">
-                <div class="doughnut-header">
-                    <h3>Distribusi Status Puskesmas</h3>
-                    <select id="doughnutFilter"></select>
-                </div>
-                <canvas id="doughnutChart"></canvas>
-            </div>
+        <p class="dashboard-section-title">Detail per Puskesmas</p>
+        <section class="table-section">
             <div class="chart-card table-card">
                 <h3>Tabel Monitoring Puskesmas</h3>
                 <input type="text" id="searchInput" placeholder="Cari puskesmas atau indikator...">

@@ -1,103 +1,231 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 :root {
-    --primary: #2563eb;
-    --bg: #f4f6f9;
+    --primary: #0E7A63;
+    --primary-deep: #0A5346;
+    --primary-tint: #E3F3EE;
+    --bg: #F4F7F6;
     --card-bg: #ffffff;
-    --text: #1e293b;
-    --muted: #64748b;
-    --border: #e2e8f0;
+    --card-sunken: #EEF4F2;
+    --text: #16241F;
+    --muted: #5C6D68;
+    --border: #E1E9E6;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow: 0 1px 2px rgba(19,36,31,.04), 0 10px 28px -14px rgba(19,36,31,.14);
 }
 
 * { box-sizing: border-box; }
 body {
     margin: 0;
-    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    font-family: 'IBM Plex Sans', 'Segoe UI', Roboto, Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
+    -webkit-font-smoothing: antialiased;
 }
+::selection { background: var(--primary); color: #fff; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
-/* Topbar */
+/* Topbar — faint spreadsheet-cell grid in the background nods to the
+   product's core idea: data read straight from an Excel sheet. */
 .topbar {
-    background: var(--card-bg);
+    position: relative;
+    background:
+        linear-gradient(var(--card-bg), var(--card-bg)),
+        repeating-linear-gradient(to right, var(--border) 0 1px, transparent 1px 64px),
+        repeating-linear-gradient(to bottom, var(--border) 0 1px, transparent 1px 28px);
+    background-blend-mode: normal;
     border-bottom: 1px solid var(--border);
-    padding: 16px 24px;
+    padding: 20px 28px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     flex-wrap: wrap;
 }
-.brand { font-size: 22px; font-weight: 700; color: var(--primary); }
+.brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--primary-deep);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.brand::before {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    background: var(--primary);
+}
 .brand span { color: var(--text); }
-.brand-sub { color: var(--muted); font-size: 13px; flex: 1; }
+.brand-sub {
+    color: var(--muted);
+    font-size: 13px;
+    flex: 1;
+    min-width: 200px;
+}
 .admin-link {
     text-decoration: none;
     background: var(--primary);
     color: #fff;
-    padding: 8px 16px;
-    border-radius: 6px;
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
     font-size: 14px;
+    font-weight: 500;
+    transition: background-color .15s ease;
 }
+.admin-link:hover { background: var(--primary-deep); }
 
 /* Dashboard layout */
-.dashboard { padding: 24px; max-width: 1300px; margin: 0 auto; }
+.dashboard { padding: 28px 24px 60px; max-width: 1300px; margin: 0 auto; }
+
+.dashboard-section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 32px 2px 12px;
+}
+.dashboard-section-title:first-child { margin-top: 0; }
 
 .scoreboards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 8px;
 }
 .score-card {
     background: var(--card-bg);
-    border-radius: 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
     border-top: 4px solid var(--primary);
-    padding: 18px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    padding: 20px;
+    box-shadow: var(--shadow);
 }
-.score-card h4 { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
-.score-value { font-size: 28px; font-weight: 700; }
-.score-sub { font-size: 13px; color: var(--muted); margin: 4px 0 10px; }
+.score-card h4 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.score-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 30px;
+    font-weight: 600;
+    color: var(--primary-deep);
+}
+.score-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 6px 0 12px;
+}
 .score-badge {
     display: inline-block;
     color: #fff;
     font-size: 12px;
-    padding: 3px 10px;
-    border-radius: 12px;
+    font-weight: 600;
+    padding: 3px 11px;
+    border-radius: 999px;
 }
 
 .charts-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1.4fr 1fr;
     gap: 16px;
     margin-bottom: 16px;
+    align-items: stretch;
 }
 @media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
 
 .chart-card {
     background: var(--card-bg);
-    border-radius: 10px;
-    padding: 18px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
 }
-.chart-card h3 { margin: 0 0 12px; font-size: 15px; }
+.chart-card h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    margin: 0 0 16px;
+    font-size: 15.5px;
+    font-weight: 600;
+}
 
-.doughnut-header { display: flex; justify-content: space-between; align-items: center; }
-.doughnut-header select { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); }
+/* Fixed-height wrapper so a chart doesn't stretch tall on a full-width
+   row (Chart.js's default aspect ratio would otherwise size height off
+   the container's width). Requires maintainAspectRatio:false in JS. */
+.chart-canvas-box { position: relative; width: 100%; }
+.chart-canvas-box--short { height: 260px; }
 
+.doughnut-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.doughnut-header h3 { margin: 0; }
+.doughnut-header select {
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    background: var(--card-sunken);
+    color: var(--text);
+}
+
+/* Table section — its own full-width row so the table fills the card
+   edge-to-edge instead of being squeezed next to the doughnut. */
+.table-section { margin-bottom: 16px; }
+.table-card {
+    width: 100%;
+}
 .table-card #searchInput {
     width: 100%;
-    padding: 8px 12px;
-    margin-bottom: 12px;
+    padding: 11px 14px;
+    margin-bottom: 16px;
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13.5px;
+    background: var(--card-sunken);
 }
-.table-wrap { max-height: 320px; overflow-y: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-th { color: var(--muted); position: sticky; top: 0; background: var(--card-bg); }
+.table-card #searchInput:focus { background: var(--card-bg); }
 
-.badge { color: #fff; font-size: 12px; padding: 3px 10px; border-radius: 12px; }
+.table-wrap {
+    max-height: 460px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--border); }
+th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    position: sticky;
+    top: 0;
+    background: var(--card-sunken);
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--card-sunken); }
+td:nth-child(3), td:nth-child(4) {
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+}
 
-.footer { text-align: center; padding: 20px; color: var(--muted); font-size: 13px; }
+.badge { color: #fff; font-size: 11.5px; font-weight: 600; padding: 3px 11px; border-radius: 999px; }
+
+.footer { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
 
 /* Login page */
 .login-page {
@@ -124,7 +252,8 @@ th { color: var(--muted); position: sticky; top: 0; background: var(--card-bg); 
 .alert-success { background: #dcfce7; color: #15803d; padding: 8px 12px; border-radius: 6px; font-size: 13px; margin-top: 10px; }
 .alert-warning { background: #fef9c3; color: #854d0e; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-top: 8px; }
 
-/* Admin page */
+/* Legacy admin page rules — kept as-is; admin/dashboard.php now uses its
+   own assets/css/admin.css, but other admin pages may still reference these. */
 .admin-nav {
     background: var(--text); color: #fff; padding: 14px 24px;
     display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;

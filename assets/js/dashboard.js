@@ -66,7 +66,11 @@ function renderLineChart(lineData) {
     new Chart(document.getElementById('lineChart'), {
         type: 'line',
         data: { labels: [1,2,3,4,5,6].map(b => bulanLabel[b]), datasets },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
     });
 }
 
