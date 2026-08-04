@@ -24,8 +24,11 @@ if (empty($rows)) {
 // (mis. target=4, capaian=10 -> 250% untuk baris itu saja), dan karena tak tertimbang,
 // beberapa baris seperti itu bisa menyeret rata-rata keseluruhan jadi ribuan persen —
 // ini penyebab bug "6412.6%" sebelumnya.
+$indicatorList = array_values(array_unique(array_map(fn($r) => $r['indikator'], $rows)));
+sort($indicatorList, SORT_NATURAL | SORT_FLAG_CASE);
+
 $scoreboard = [];
-foreach (INDIKATOR_VALID as $ind) {
+foreach ($indicatorList as $ind) {
     $subset = array_values(array_filter($rows, fn($r) => $r['indikator'] === $ind));
     if (!$subset) continue;
     $scoreboard[] = [
@@ -36,12 +39,13 @@ foreach (INDIKATOR_VALID as $ind) {
     ];
 }
 
-// --- 2. LINE CHART: tren persentase gabungan per bulan untuk 3 indikator ---
-$lineIndikator = ['Usia Produktif', 'Hipertensi', 'Diabetes Mellitus'];
+// --- 2. LINE CHART: tren persentase gabungan per bulan untuk indikator yang tersedia di file baru ---
 $lineChart = [];
-foreach ($lineIndikator as $ind) {
-    for ($b = 1; $b <= 6; $b++) {
-        $subset = array_values(array_filter($rows, fn($r) => $r['indikator'] === $ind && $r['bulan'] === $b));
+foreach ($indicatorList as $ind) {
+    $months = array_values(array_unique(array_map(fn($r) => (int)$r['bulan'], array_filter($rows, fn($r) => $r['indikator'] === $ind))));
+    sort($months, SORT_NUMERIC);
+    foreach ($months as $b) {
+        $subset = array_values(array_filter($rows, fn($r) => $r['indikator'] === $ind && (int)$r['bulan'] === $b));
         if (!$subset) continue;
         $lineChart[] = [
             'indikator' => $ind,
@@ -51,13 +55,16 @@ foreach ($lineIndikator as $ind) {
     }
 }
 
-// --- 3. BAR CHART: ranking puskesmas berdasarkan skor gabungan 4 indikator ---
-// skor_gabungan = rata-rata dari 4 persentase gabungan (satu per indikator),
+// --- 3. BAR CHART: ranking puskesmas berdasarkan skor gabungan indikator yang tersedia ---
+// skor_gabungan = rata-rata dari persentase gabungan tiap indikator,
 // supaya tiap indikator berbobot sama (bukan rata-rata 24 baris mentah).
+$puskesmasList = array_values(array_unique(array_map(fn($r) => $r['puskesmas'], $rows)));
+sort($puskesmasList, SORT_NATURAL | SORT_FLAG_CASE);
+
 $barChart = [];
-foreach (PUSKESMAS_VALID as $pkm) {
+foreach ($puskesmasList as $pkm) {
     $skorPerIndikator = [];
-    foreach (INDIKATOR_VALID as $ind) {
+    foreach ($indicatorList as $ind) {
         $subset = array_values(array_filter($rows, fn($r) => $r['puskesmas'] === $pkm && $r['indikator'] === $ind));
         if (!$subset) continue;
         $skorPerIndikator[] = persenGabungan($subset);
@@ -72,11 +79,11 @@ usort($barChart, fn($a, $b) => $b['skor_gabungan'] <=> $a['skor_gabungan']);
 
 // --- 4. DOUGHNUT: jumlah puskesmas per status, keseluruhan + per indikator ---
 // status dihitung dari persentase gabungan (total capaian/total target) tiap
-// kombinasi puskesmas+indikator selama Jan-Jun, bukan rata-rata baris.
+// kombinasi puskesmas+indikator, bukan rata-rata baris.
 $doughnut = ['Semua' => ['Tercapai'=>0, 'Perlu Ditingkatkan'=>0, 'Belum Tercapai'=>0]];
-foreach (INDIKATOR_VALID as $ind) {
+foreach ($indicatorList as $ind) {
     $doughnut[$ind] = ['Tercapai'=>0, 'Perlu Ditingkatkan'=>0, 'Belum Tercapai'=>0];
-    foreach (PUSKESMAS_VALID as $pkm) {
+    foreach ($puskesmasList as $pkm) {
         $subset = array_values(array_filter($rows, fn($r) => $r['indikator'] === $ind && $r['puskesmas'] === $pkm));
         if (!$subset) continue;
         $rata = persenGabungan($subset);
@@ -86,10 +93,10 @@ foreach (INDIKATOR_VALID as $ind) {
     }
 }
 
-// --- 5. TABEL: monitoring semua puskesmas per indikator (persentase gabungan Jan-Jun) + status ---
+// --- 5. TABEL: monitoring semua puskesmas per indikator (persentase gabungan) + status ---
 $tabel = [];
-foreach (PUSKESMAS_VALID as $pkm) {
-    foreach (INDIKATOR_VALID as $ind) {
+foreach ($puskesmasList as $pkm) {
+    foreach ($indicatorList as $ind) {
         $subset = array_values(array_filter($rows, fn($r) => $r['puskesmas'] === $pkm && $r['indikator'] === $ind));
         if (!$subset) continue;
         $rata = persenGabungan($subset);

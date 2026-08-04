@@ -10,8 +10,8 @@ const INDIKATOR_COLOR = {
     'Diabetes Mellitus': '#a855f7',
     'HPV DNA': '#06b6d4',
 };
+const FALLBACK_INDICATOR_COLORS = ['#14b8a6', '#f97316', '#8b5cf6', '#0ea5e9', '#84cc16', '#e11d48'];
 const MONTH_LABELS = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'Mei',6:'Jun',7:'Jul',8:'Agu',9:'Sep',10:'Okt',11:'Nov',12:'Des'};
-const PUSKESMAS_LIST = ['Eahun','Sotimori','Korbafo','Sonimanu','Feapopi','Baa','Oele','Busalangga','Oelaba','Batutua','Delha','Ndao'];
 
 let dashboardRows = [];
 let doughnutChartInstance = null;
@@ -23,6 +23,20 @@ const FILTER_STATE = {
     periodeType: 'bulanan',
     periodeValue: 'all',
 };
+
+function getUniquePuskesmas(rows = dashboardRows) {
+    return [...new Set(rows.map(row => row.puskesmas).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function getUniqueIndicators(rows = dashboardRows) {
+    return [...new Set(rows.map(row => row.indikator).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function getIndicatorColor(indikator) {
+    if (INDIKATOR_COLOR[indikator]) return INDIKATOR_COLOR[indikator];
+    const index = getUniqueIndicators().indexOf(indikator);
+    return FALLBACK_INDICATOR_COLORS[index % FALLBACK_INDICATOR_COLORS.length] || '#2563eb';
+}
 
 async function loadDashboard() {
     const res = await fetch('api/data.php');
@@ -37,8 +51,8 @@ async function loadDashboard() {
 function setupFilterControls() {
     const puskesmasSelect = document.getElementById('puskesmasFilter');
     if (puskesmasSelect) {
-        const uniquePuskesmas = ['Semua', ...PUSKESMAS_LIST];
-        puskesmasSelect.innerHTML = uniquePuskesmas.map(item => `<option value="${item}">${item === 'Semua' ? 'Semua Puskesmas' : `Puskesmas ${item}`}</option>`).join('');
+        const uniquePuskesmas = ['Semua', ...getUniquePuskesmas()];
+        puskesmasSelect.innerHTML = uniquePuskesmas.map(item => `<option value="${item}">${item === 'Semua' ? 'Semua Puskesmas' : item}</option>`).join('');
         puskesmasSelect.value = FILTER_STATE.puskesmas;
         puskesmasSelect.addEventListener('change', () => {
             FILTER_STATE.puskesmas = puskesmasSelect.value;
@@ -72,12 +86,14 @@ function buildPeriodOptions() {
     const type = periodeType.value;
     const knownYears = [...new Set(dashboardRows.map(row => String(row.tahun)))].sort().reverse();
     const fallbackYear = knownYears[0] || '2026';
+    const knownMonths = [...new Set(dashboardRows.map(row => Number(row.bulan)).filter(month => month >= 1 && month <= 12))].sort((a, b) => a - b);
 
     let options = [{ value: 'all', label: 'Semua Periode' }];
 
     if (type === 'bulanan') {
-        [1,2,3,4,5,6,7,8,9,10,11,12].forEach(month => {
-            options.push({ value: String(month), label: `${MONTH_LABELS[month]} ${fallbackYear}` });
+        const months = knownMonths.length ? knownMonths : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        months.forEach(month => {
+            options.push({ value: String(month), label: `${MONTH_LABELS[month] || month} ${fallbackYear}` });
         });
     }
     if (type === 'triwulan') {
@@ -87,7 +103,8 @@ function buildPeriodOptions() {
         ['sem-1', 'sem-2'].forEach((code, index) => options.push({ value: code, label: `Semester ${index + 1} (${fallbackYear})` }));
     }
     if (type === 'tahunan') {
-        ['2026', '2025', '2024'].forEach(year => options.push({ value: `th-${year}`, label: `Tahun ${year}` }));
+        const years = knownYears.length ? knownYears : ['2026', '2025', '2024'];
+        years.forEach(year => options.push({ value: `th-${year}`, label: `Tahun ${year}` }));
     }
 
     periodeValue.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('');
@@ -204,7 +221,7 @@ function renderLineChart(rows) {
         return {
             label: indikator,
             data: months.map(b => byMonth[b] ?? null),
-            borderColor: INDIKATOR_COLOR[indikator] || '#888',
+            borderColor: getIndicatorColor(indikator),
             backgroundColor: 'transparent',
             tension: 0.3,
         };
@@ -224,7 +241,7 @@ function renderLineChart(rows) {
 
 function buildLineChartRows(rows) {
     const out = [];
-    const indicatorList = ['Usia Produktif', 'Hipertensi', 'Diabetes Mellitus'];
+    const indicatorList = getUniqueIndicators(rows);
     indicatorList.forEach((indikator) => {
         const monthGroups = rows.filter(row => row.indikator === indikator).reduce((acc, row) => {
             acc[row.bulan] = acc[row.bulan] || [];
@@ -275,8 +292,9 @@ function buildBarChartRows(rows) {
         return acc;
     }, {});
 
+    const indicatorList = getUniqueIndicators(rows);
     const result = Object.keys(grouped).map((puskesmas) => {
-        const indikatorValues = ['Usia Produktif', 'Hipertensi', 'Diabetes Mellitus', 'HPV DNA'].map((indikator) => {
+        const indikatorValues = indicatorList.map((indikator) => {
             const subset = grouped[puskesmas].filter(row => row.indikator === indikator);
             return subset.length ? formatCategoryValue(subset) : 0;
         }).filter(value => value > 0);
@@ -314,7 +332,7 @@ function buildDoughnutRows(rows) {
         Semua: { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0 },
     };
 
-    ['Usia Produktif', 'Hipertensi', 'Diabetes Mellitus', 'HPV DNA'].forEach((indikator) => {
+    getUniqueIndicators(rows).forEach((indikator) => {
         doughnut[indikator] = { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0 };
     });
 
@@ -331,7 +349,9 @@ function buildDoughnutRows(rows) {
         const status = getStatusFromPercent(persen);
 
         doughnut.Semua[status] += 1;
-        doughnut[indikator][status] += 1;
+        if (doughnut[indikator]) {
+            doughnut[indikator][status] += 1;
+        }
     });
 
     return doughnut;
@@ -395,7 +415,7 @@ function setupDoughnutFilter(keys) {
 function syncDoughnutFilter() {
     const select = document.getElementById('doughnutFilter');
     if (!select) return;
-    const keys = ['Semua', 'Usia Produktif', 'Hipertensi', 'Diabetes Mellitus', 'HPV DNA'];
+    const keys = ['Semua', ...getUniqueIndicators()];
     setupDoughnutFilter(keys);
 }
 
