@@ -40,7 +40,7 @@ function detectSheetKind(array $headerSet, string $sheetName): ?string {
     $isRealisasiSheet = isset($headerSet['TAHUN'])
         && isset($headerSet['PUSKESMAS'])
         && isset($headerSet['INDIKATOR'])
-        && isset($headerSet['CAPAIAN']);
+        && (isset($headerSet['CAPAIAN']) || isset($headerSet['CAPAIAN BULANAN']));
 
     if ($isRealisasiSheet) {
         return 'realisasi';
@@ -85,7 +85,7 @@ function buildRowFromSheetData(array $sheetRow, array $header, string $sheetName
     $idxSasaran = getHeaderIndex($header, ['SASARAN']);
     $idxTargetThn = getHeaderIndex($header, ['TARGET TAHUNAN']);
     $idxTargetBln = getHeaderIndex($header, ['TARGET BULANAN', 'TARGET']);
-    $idxCapaian = getHeaderIndex($header, ['CAPAIAN']);
+    $idxCapaian = getHeaderIndex($header, ['CAPAIAN', 'CAPAIAN BULANAN']);
 
     if ($idxPuskesmas === false || $idxIndikator === false) {
         return null;
@@ -133,10 +133,79 @@ function buildRowFromSheetData(array $sheetRow, array $header, string $sheetName
 }
 
 /**
+ * Baca sheet TARGET yang tidak memiliki kolom BULAN.
+ * Setiap baris dianggap sebagai target tahunan untuk satu puskesmas + indikator.
+ * Target bulanan = Target Tahunan / 12 (dibulatkan ke bawah jika perlu).
+ *
+ * Mengembalikan map: "tahun|puskesmas|indikator" => data target
+ */
+function buildTargetMapFromYearlySheet(array $data, int $headerIdx): array {
+    $header = array_map(fn($h) => normalizeHeaderName((string)$h), $data[$headerIdx] ?? []);
+    $idxTahun = getHeaderIndex($header, ['TAHUN']);
+    $idxPuskesmas = getHeaderIndex($header, ['PUSKESMAS']);
+    $idxIndikator = getHeaderIndex($header, ['INDIKATOR']);
+    $idxSasaran = getHeaderIndex($header, ['SASARAN']);
+    $idxTargetThn = getHeaderIndex($header, ['TARGET TAHUNAN']);
+    $idxTargetBln = getHeaderIndex($header, ['TARGET BULANAN']);
+
+    if ($idxPuskesmas === false || $idxIndikator === false) {
+        return [];
+    }
+
+    $map = [];
+    for ($i = $headerIdx + 1; $i < count($data); $i++) {
+        $row = $data[$i];
+        $puskesmas = trim((string)($row[$idxPuskesmas] ?? ''));
+        $indikator  = trim((string)($row[$idxIndikator] ?? ''));
+        if ($puskesmas === '' || $indikator === '') {
+            continue;
+        }
+
+        $tahun = $idxTahun !== false ? (int)($row[$idxTahun] ?? 2026) : 2026;
+        $targetTahunan = $idxTargetThn !== false ? (float)($row[$idxTargetThn] ?? 0) : 0.0;
+
+        // Jika ada kolom TARGET BULANAN eksplisit, gunakan itu; jika tidak, bagi target tahunan dengan 12.
+        if ($idxTargetBln !== false && (float)($row[$idxTargetBln] ?? 0) > 0) {
+            $targetBulanan = (float)($row[$idxTargetBln]);
+        } else {
+            $targetBulanan = $targetTahunan > 0 ? round($targetTahunan / 12, 2) : 0.0;
+        }
+
+        $sasaran = $idxSasaran !== false ? (int)($row[$idxSasaran] ?? 0) : 0;
+
+        $key = implode('|', [$tahun, strtoupper($puskesmas), strtoupper($indikator)]);
+        $map[$key] = [
+            'tahun'          => $tahun,
+            'puskesmas'      => $puskesmas,
+            'indikator'      => $indikator,
+            'sasaran'        => $sasaran,
+            'target_tahunan' => (int)$targetTahunan,
+            'target_bulanan' => $targetBulanan,
+        ];
+    }
+
+    return $map;
+}
+
+/**
+ * Mencari index baris yang berfungsi sebagai header.
+ */
+function findHeaderRowIndex(array $data): int {
+    $limit = min(5, count($data));
+    for ($i = 0; $i < $limit; $i++) {
+        $rowStr = strtoupper(implode(' ', array_map('strval', $data[$i] ?? [])));
+        if (str_contains($rowStr, 'PUSKESMAS') && (str_contains($rowStr, 'INDIKATOR') || str_contains($rowStr, 'TARGET') || str_contains($rowStr, 'CAPAIAN'))) {
+            return $i;
+        }
+    }
+    return 0; // Default fallback
+}
+
+/**
  * Cari sheet-sheet di workbook yang berisi struktur data SIPANDA.
  * Prioritas diberikan ke sheet DATABASE SIPANDA, lalu sheet TARGET, lalu sheet REALISASI.
  *
- * @return array<int, array{name: string, data: array, kind: string}>
+ * @return array<int, array{name: string, data: array, kind: string, header_idx: int}>
  */
 function cariSheetDataSipanda(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet): array {
     $candidates = [];
@@ -146,13 +215,14 @@ function cariSheetDataSipanda(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet
         if (count($data) < 2) {
             continue;
         }
-
-        $header = array_map(fn($h) => normalizeHeaderName((string)$h), $data[0] ?? []);
+        
+        $headerIdx = findHeaderRowIndex($data);
+        $header = array_map(fn($h) => normalizeHeaderName((string)$h), $data[$headerIdx] ?? []);
         $headerSet = array_flip($header);
         $kind = detectSheetKind($headerSet, $sheetName);
 
         if ($kind !== null) {
-            $candidates[] = ['name' => $sheetName, 'data' => $data, 'kind' => $kind];
+            $candidates[] = ['name' => $sheetName, 'data' => $data, 'kind' => $kind, 'header_idx' => $headerIdx];
         }
     }
 
@@ -206,9 +276,14 @@ function bacaDataSipanda(string $path): array {
     $targetRows = [];
     $realisasiRows = [];
 
+    // Deteksi apakah ada sheet TARGET tanpa kolom BULAN (format tahunan)
+    $yearlyTargetMap = []; // key: "tahun|puskesmas|indikator"
+    $hasYearlyTarget = false;
+
     foreach ($candidates as $candidate) {
         $data = $candidate['data'];
-        $header = array_map(fn($h) => normalizeHeaderName((string)$h), $data[0] ?? []);
+        $headerIdx = $candidate['header_idx'];
+        $header = array_map(fn($h) => normalizeHeaderName((string)$h), $data[$headerIdx] ?? []);
         $kind = $candidate['kind'];
 
         if ($kind === 'database') {
@@ -216,9 +291,20 @@ function bacaDataSipanda(string $path): array {
             continue;
         }
 
-        $totalBarisDibaca += count($data) - 1;
+        $totalBarisDibaca += max(0, count($data) - ($headerIdx + 1));
 
-        for ($i = 1; $i < count($data); $i++) {
+        if ($kind === 'target') {
+            // Cek apakah sheet target ini punya kolom BULAN
+            $hasBulanCol = getHeaderIndex($header, ['BULAN', 'NO BULAN', 'NO. BULAN']) !== false;
+            if (!$hasBulanCol) {
+                // Format target tahunan: satu baris per puskesmas+indikator, tanpa bulan
+                $hasYearlyTarget = true;
+                $yearlyTargetMap = array_merge($yearlyTargetMap, buildTargetMapFromYearlySheet($data, $headerIdx));
+                continue;
+            }
+        }
+
+        for ($i = $headerIdx + 1; $i < count($data); $i++) {
             $sheetRow = $data[$i];
             $row = buildRowFromSheetData($sheetRow, $header, $candidate['name'], $i + 1, $kind);
             if ($row === null) {
@@ -237,7 +323,8 @@ function bacaDataSipanda(string $path): array {
     if (!empty($databaseCandidates)) {
         foreach ($databaseCandidates as $candidate) {
             $data = $candidate['data'];
-            $header = array_map(fn($h) => normalizeHeaderName((string)$h), $data[0] ?? []);
+            $headerIdx = $candidate['header_idx'];
+            $header = array_map(fn($h) => normalizeHeaderName((string)$h), $data[$headerIdx] ?? []);
             $idxTahun = getHeaderIndex($header, ['TAHUN']);
             $idxNoBulan = getHeaderIndex($header, ['NO BULAN', 'NO. BULAN']);
             $idxBulan = getHeaderIndex($header, ['BULAN']);
@@ -246,7 +333,7 @@ function bacaDataSipanda(string $path): array {
             $idxSasaran = getHeaderIndex($header, ['SASARAN']);
             $idxTargetThn = getHeaderIndex($header, ['TARGET TAHUNAN']);
             $idxTargetBln = getHeaderIndex($header, ['TARGET BULANAN']);
-            $idxCapaian = getHeaderIndex($header, ['CAPAIAN']);
+            $idxCapaian = getHeaderIndex($header, ['CAPAIAN', 'CAPAIAN BULANAN']);
 
             if ($idxPuskesmas === false || $idxIndikator === false || $idxTargetBln === false || $idxCapaian === false) {
                 $errors[] = "Sheet {$candidate['name']}: kolom wajib tidak ditemukan untuk struktur database";
@@ -258,7 +345,7 @@ function bacaDataSipanda(string $path): array {
                 continue;
             }
 
-            for ($i = 1; $i < count($data); $i++) {
+            for ($i = $headerIdx + 1; $i < count($data); $i++) {
                 $sheetRow = $data[$i];
                 $namaPuskesmas = trim((string)($sheetRow[$idxPuskesmas] ?? ''));
                 $namaIndikator = trim((string)($sheetRow[$idxIndikator] ?? ''));
@@ -290,8 +377,33 @@ function bacaDataSipanda(string $path): array {
                 ];
             }
         }
+    } elseif ($hasYearlyTarget) {
+        // Mode: sheet TARGET tahunan (tanpa kolom BULAN) + sheet REALISASI bulanan
+        // Kunci target: tahun|puskesmas|indikator
+        // Kunci realisasi: tahun|bulan|puskesmas|indikator -> cocokkan ke target tahunan
+        foreach ($realisasiRows as $realisasiRow) {
+            $targetKey = implode('|', [$realisasiRow['tahun'], strtoupper($realisasiRow['puskesmas']), strtoupper($realisasiRow['indikator'])]);
+            $targetInfo = $yearlyTargetMap[$targetKey] ?? null;
+
+            $targetBulanan = $targetInfo['target_bulanan'] ?? 0.0;
+            $capaian = $realisasiRow['capaian'];
+            $persentase = $targetBulanan > 0 ? round(($capaian / $targetBulanan) * 100, 2) : 0;
+
+            $rows[] = [
+                'tahun'          => $realisasiRow['tahun'],
+                'bulan'          => $realisasiRow['bulan'],
+                'puskesmas'      => $realisasiRow['puskesmas'],
+                'indikator'      => $realisasiRow['indikator'],
+                'sasaran'        => $targetInfo['sasaran'] ?? 0,
+                'target_tahunan' => $targetInfo['target_tahunan'] ?? 0,
+                'target_bulanan' => $targetBulanan,
+                'capaian'        => $capaian,
+                'persentase'     => $persentase,
+                'status'         => hitungStatus($persentase),
+            ];
+        }
     } else {
-        $merged = [];
+        // Mode: sheet TARGET bulanan + sheet REALISASI bulanan, gabung per bulan
         $targetMap = [];
         $realisasiMap = [];
 
@@ -316,17 +428,21 @@ function bacaDataSipanda(string $path): array {
                 continue;
             }
 
+            $targetBulanan = (float)($targetRow['target_bulanan'] ?? 0);
+            $capaian = (float)($realisasiRow['capaian'] ?? 0);
+            $persentase = $targetBulanan > 0 ? round(($capaian / $targetBulanan) * 100, 2) : 0;
+
             $rows[] = [
-                'tahun' => (int)($targetRow['tahun'] ?? $realisasiRow['tahun'] ?? 2026),
-                'bulan' => (int)($targetRow['bulan'] ?? $realisasiRow['bulan'] ?? 1),
-                'puskesmas' => (string)($targetRow['puskesmas'] ?? $realisasiRow['puskesmas'] ?? ''),
-                'indikator' => (string)($targetRow['indikator'] ?? $realisasiRow['indikator'] ?? ''),
-                'sasaran' => (int)($targetRow['sasaran'] ?? 0),
+                'tahun'          => (int)($targetRow['tahun'] ?? $realisasiRow['tahun'] ?? 2026),
+                'bulan'          => (int)($targetRow['bulan'] ?? $realisasiRow['bulan'] ?? 1),
+                'puskesmas'      => (string)($targetRow['puskesmas'] ?? $realisasiRow['puskesmas'] ?? ''),
+                'indikator'      => (string)($targetRow['indikator'] ?? $realisasiRow['indikator'] ?? ''),
+                'sasaran'        => (int)($targetRow['sasaran'] ?? 0),
                 'target_tahunan' => (int)($targetRow['target_tahunan'] ?? 0),
-                'target_bulanan' => (float)($targetRow['target_bulanan'] ?? 0),
-                'capaian' => (float)($realisasiRow['capaian'] ?? 0),
-                'persentase' => (float)(($targetRow['target_bulanan'] ?? 0) > 0 ? round(((float)($realisasiRow['capaian'] ?? 0) / (float)($targetRow['target_bulanan'] ?? 0)) * 100, 2) : 0),
-                'status' => hitungStatus((float)(($targetRow['target_bulanan'] ?? 0) > 0 ? round(((float)($realisasiRow['capaian'] ?? 0) / (float)($targetRow['target_bulanan'] ?? 0)) * 100, 2) : 0)),
+                'target_bulanan' => $targetBulanan,
+                'capaian'        => $capaian,
+                'persentase'     => $persentase,
+                'status'         => hitungStatus($persentase),
             ];
         }
     }
