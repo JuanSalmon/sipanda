@@ -27,17 +27,22 @@ langsung dari file Excel — **tanpa disimpan ke database**.
 
 ## Rumus & Aturan
 
-- **PERSENTASE** = CAPAIAN ÷ TARGET BULANAN × 100
+- **PERSENTASE per baris** (per Puskesmas-Indikator-Bulan) = CAPAIAN ÷ TARGET BULANAN × 100
+  (dihitung di `excel_reader.php`, dipakai untuk status per baris).
 - **STATUS**: ≥100% Tercapai (hijau) · 70–99% Perlu Ditingkatkan (oranye) · <70% Belum Tercapai (merah)
-- **Scoreboard/tabel** pakai rata-rata PERSENTASE bulanan (Jan–Jun) per indikator/puskesmas
+- **Persentase agregat** (scoreboard, line chart, bar chart, doughnut, tabel monitoring) = **total
+  CAPAIAN ÷ total TARGET BULANAN** dari baris-baris yang digabung (bukan rata-rata dari kolom
+  PERSENTASE per baris). Dihitung lewat fungsi `persenGabungan()` di `functions.php`.
+  *(Lihat bagian "Riwayat Debugging" — ini hasil perbaikan dari bug awal.)*
 
 ## 5 Komponen Dashboard
 
-1. 4 scoreboard — rata-rata % + total capaian/target per indikator
-2. Line chart — tren rata-rata % per bulan (Usia Produktif, Hipertensi, Diabetes Mellitus)
-3. Bar chart — ranking 12 Puskesmas berdasarkan skor gabungan 4 indikator
+1. 4 scoreboard — persentase agregat (total capaian/total target) per indikator
+2. Line chart — tren persentase agregat per bulan (Usia Produktif, Hipertensi, Diabetes Mellitus)
+3. Bar chart — ranking 12 Puskesmas berdasarkan skor gabungan (rata-rata dari 4 persentase agregat
+   per indikator, tiap indikator berbobot sama)
 4. Doughnut — jumlah Puskesmas per status, dengan dropdown filter per indikator
-5. Tabel monitoring — semua Puskesmas × indikator, dengan kolom search
+5. Tabel monitoring — semua Puskesmas × indikator (persentase agregat Jan–Jun), dengan kolom search
 
 ## Struktur Project
 
@@ -61,13 +66,14 @@ sipanda/
 │   └── schema.sql           # Tabel admin_users & upload_log SAJA
 ├── includes/
 │   ├── excel_reader.php     # Baca & validasi isi Excel (dipakai bareng oleh admin & api)
-│   ├── functions.php        # hitungStatus(), warnaStatus(), formatPersen(), namaBulan()
+│   ├── functions.php        # hitungStatus(), warnaStatus(), formatPersen(), namaBulan(),
+│   │                         # persenGabungan()
 │   └── auth.php             # Guard session login admin
 ├── uploads/
 │   └── data_sipanda.xlsx    # File Excel aktif (terbuat otomatis saat upload pertama)
 ├── index.php                # Dashboard publik / landing page
 ├── setup.php                # Jalankan sekali untuk buat akun admin pertama, lalu hapus
-├── composer.json            # Dependency: phpoffice/phpspreadsheet
+├── composer.json             # Dependency: phpoffice/phpspreadsheet
 └── README.md                # Panduan install & format file Excel
 ```
 
@@ -84,3 +90,29 @@ sipanda/
   perlu diupdate manual di kode.
 - Data contoh yang diupload (288 baris, 12 Puskesmas × 4 indikator × 6 bulan Jan–Jun 2026) sudah
   dicek strukturnya dan cocok dengan parser di atas.
+
+## Riwayat Debugging & Perbaikan
+
+### 1. Persentase agregat meledak (mis. Usia Produktif tampil 6412.6%)
+
+- **Gejala**: scoreboard menampilkan persentase ribuan persen, tidak sinkron dengan angka
+  "total capaian / total target" yang ditampilkan di kartu yang sama.
+- **Penyebab**: `data.php` versi awal menghitung persentase agregat sebagai **rata-rata tak
+  tertimbang** dari kolom PERSENTASE per baris (`array_sum(persentase) / count`). Karena ada
+  baris-baris dengan TARGET BULANAN kecil, CAPAIAN sedikit saja membuat PERSENTASE baris itu
+  meledak (ratusan persen), dan rata-rata tak tertimbang ikut tertarik jauh dari kenyataan.
+- **Perbaikan**: menambah fungsi `persenGabungan()` di `functions.php` — menjumlahkan CAPAIAN dan
+  TARGET BULANAN dari sekumpulan baris dulu, baru dibagi (weighted average: total ÷ total).
+  Diterapkan ke seluruh agregasi di `data.php` (scoreboard, line chart, bar chart, doughnut, tabel).
+- **Status**: **selesai diperbaiki**, sudah di-push ke GitHub.
+
+### 2. Tabel monitoring: Usia Produktif Baa (64500%) & Batutua (12050%)
+
+- **Gejala**: dua Puskesmas menampilkan persentase Usia Produktif yang sangat ekstrem
+  (capaian ribuan, target hanya 6 selama 6 bulan).
+- **Penyebab**: **bukan bug kode** — perhitungan `data.php` sudah benar secara matematis
+  berdasarkan angka yang dibaca dari Excel. Sumber masalah ada di **data Excel itu sendiri**:
+  kolom TARGET BULANAN untuk indikator Usia Produktif di Puskesmas Baa & Batutua totalnya hanya 6
+  selama Jan–Jun (≈1/bulan), jauh di luar skala normal dibanding Puskesmas lain (ratusan–ribuan).
+- **Status**: **belum diperbaiki** — perlu koreksi manual pada file Excel sumber (`TARGET BULANAN`
+  untuk Baa & Batutua, indikator Usia Produktif, Jan–Jun).

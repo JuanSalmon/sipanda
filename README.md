@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SIPANDA PTM
 
 Sistem Informasi Pemantauan Data - Penyakit Tidak Menular.
@@ -70,3 +71,6 @@ sipanda/
 ├── index.php                  # Dashboard publik (landing page)
 └── setup.php                  # Jalankan sekali untuk buat akun admin, lalu hapus
 ```
+=======
+# sipanda
+>>>>>>> c91877eea4c376895ed3c3fd05400fe3ab1d67fa
