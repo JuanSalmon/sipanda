@@ -12,6 +12,7 @@ if (empty($rows)) {
         'scoreboard' => [], 'line_chart' => [], 'bar_chart' => [],
         'doughnut' => ['Semua' => ['Tercapai'=>0,'Perlu Ditingkatkan'=>0,'Belum Tercapai'=>0]],
         'tabel' => [],
+        'raw_rows' => [],
         'pesan' => $hasil['errors'][0] ?? 'Belum ada data. Admin perlu upload file Excel terlebih dahulu.',
     ]);
     exit;
@@ -109,4 +110,5 @@ echo json_encode([
     'bar_chart' => $barChart,
     'doughnut' => $doughnut,
     'tabel' => $tabel,
+    'raw_rows' => $rows,
 ]);
