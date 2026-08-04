@@ -83,9 +83,9 @@ $pctError = 100 - $pctValid;
         <div class="sa-upload-box">
             <h3>Upload Data Excel</h3>
             <p class="sa-hint">
-                File harus berupa .xlsx dengan sheet bernama <b>DATABASE SIPANDA</b>.
-                Kolom yang dipakai (header di baris 1): TAHUN, NO BULAN, BULAN, PUSKESMAS, INDIKATOR,
-                SASARAN, TARGET TAHUNAN, TARGET BULANAN, CAPAIAN.
+                File harus berupa .xlsx. Sistem akan memindai workbook dan memakai sheet data yang paling relevan,
+                terutama sheet <b>DATABASE SIPANDA</b> jika tersedia. Kolom yang dipakai (header di baris 1):
+                TAHUN, NO BULAN/BULAN, PUSKESMAS, INDIKATOR, SASARAN, TARGET TAHUNAN, TARGET BULANAN, CAPAIAN.
                 PERSENTASE &amp; STATUS dihitung ulang otomatis oleh sistem, kolom CATATAN diabaikan.
                 <b>File ini menggantikan file sebelumnya</b> — data lama tidak disimpan di database, hanya file
                 Excel terakhir yang dibaca dashboard.

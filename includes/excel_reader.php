@@ -14,45 +14,72 @@ const BULAN_MAP = [
 ];
 
 /**
- * Baca file Excel sheet "DATABASE SIPANDA" dan kembalikan array baris yang sudah bersih
- * (persentase & status dihitung ulang, bukan dari file), plus daftar baris error.
+ * Cari sheet-sheet di workbook yang berisi struktur data SIPANDA.
+ * Jika ada sheet bernama DATABASE SIPANDA, dia akan diprioritaskan.
  *
- * @return array{rows: array, errors: array, total_baris_dibaca: int}
+ * @return array<int, array{name: string, data: array}>
+ */
+function cariSheetDataSipanda(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet): array {
+    $candidates = [];
+    foreach ($spreadsheet->getSheetNames() as $sheetName) {
+        $sheet = $spreadsheet->getSheetByName($sheetName);
+        $data = $sheet->toArray(null, true, true, false);
+        if (count($data) < 2) {
+            continue;
+        }
+
+        $header = array_map(fn($h) => strtoupper(trim((string)$h)), $data[0] ?? []);
+        $headerSet = array_flip($header);
+
+        $required = ['TAHUN', 'NO BULAN', 'BULAN', 'PUSKESMAS', 'INDIKATOR', 'SASARAN', 'TARGET TAHUNAN', 'TARGET BULANAN', 'CAPAIAN'];
+        $hasRequired = true;
+        foreach ($required as $field) {
+            if (!isset($headerSet[$field])) {
+                $hasRequired = false;
+                break;
+            }
+        }
+
+        if ($hasRequired) {
+            $candidates[] = ['name' => $sheetName, 'data' => $data];
+        }
+    }
+
+    usort($candidates, function (array $a, array $b): int {
+        if ($a['name'] === 'DATABASE SIPANDA') {
+            return -1;
+        }
+        if ($b['name'] === 'DATABASE SIPANDA') {
+            return 1;
+        }
+        return strcmp($a['name'], $b['name']);
+    });
+
+    return $candidates;
+}
+
+/**
+ * Baca file Excel workbook dan ambil baris data dari sheet yang relevan.
+ * Dengan struktur workbook baru, sistem sekarang bisa men-scan beberapa sheet
+ * dan memakai sheet data utama yang memiliki kolom SIPANDA.
+ *
+ * @return array{rows: array, errors: array, total_baris_dibaca: int, sheets_dibaca: array}
  */
 function bacaDataSipanda(string $path): array {
     if (!file_exists($path)) {
-        return ['rows' => [], 'errors' => ['File data belum diupload.'], 'total_baris_dibaca' => 0];
+        return ['rows' => [], 'errors' => ['File data belum diupload.'], 'total_baris_dibaca' => 0, 'sheets_dibaca' => []];
     }
 
     $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
-    if (!$spreadsheet->sheetNameExists('DATABASE SIPANDA')) {
-        return ['rows' => [], 'errors' => ['Sheet "DATABASE SIPANDA" tidak ditemukan di file.'], 'total_baris_dibaca' => 0];
-    }
+    $candidates = cariSheetDataSipanda($spreadsheet);
 
-    $sheet = $spreadsheet->getSheetByName('DATABASE SIPANDA');
-    $data = $sheet->toArray(null, true, true, false);
-
-    $header = array_map(fn($h) => strtoupper(trim((string)$h)), $data[0] ?? []);
-    $col = fn($name) => array_search($name, $header);
-
-    $idxTahun     = $col('TAHUN');
-    $idxNoBulan   = $col('NO BULAN');
-    $idxBulan     = $col('BULAN');
-    $idxPuskesmas = $col('PUSKESMAS');
-    $idxIndikator = $col('INDIKATOR');
-    $idxSasaran   = $col('SASARAN');
-    $idxTargetThn = $col('TARGET TAHUNAN');
-    $idxTargetBln = $col('TARGET BULANAN');
-    $idxCapaian   = $col('CAPAIAN');
-
-    $wajib = compact('idxPuskesmas','idxIndikator','idxSasaran','idxTargetThn','idxTargetBln','idxCapaian');
-    foreach ($wajib as $key => $val) {
-        if ($val === false) {
-            return ['rows' => [], 'errors' => ["Kolom wajib tidak ditemukan: $key"], 'total_baris_dibaca' => 0];
-        }
-    }
-    if ($idxNoBulan === false && $idxBulan === false) {
-        return ['rows' => [], 'errors' => ['Kolom wajib tidak ditemukan: BULAN atau NO BULAN'], 'total_baris_dibaca' => 0];
+    if ($candidates === []) {
+        return [
+            'rows' => [],
+            'errors' => ['Tidak ada sheet data yang cocok. Sheet yang diperlukan harus memiliki kolom: TAHUN, NO BULAN/BULAN, PUSKESMAS, INDIKATOR, SASARAN, TARGET TAHUNAN, TARGET BULANAN, CAPAIAN.'],
+            'total_baris_dibaca' => 0,
+            'sheets_dibaca' => $spreadsheet->getSheetNames(),
+        ];
     }
 
     $puskesmasSet = array_flip(array_map('strtoupper', PUSKESMAS_VALID));
@@ -60,52 +87,88 @@ function bacaDataSipanda(string $path): array {
 
     $rows = [];
     $errors = [];
+    $totalBarisDibaca = 0;
 
-    for ($i = 1; $i < count($data); $i++) {
-        $r = $data[$i];
-        $namaPuskesmas = trim((string)($r[$idxPuskesmas] ?? ''));
-        $namaIndikator = trim((string)($r[$idxIndikator] ?? ''));
-        if ($namaPuskesmas === '' || $namaIndikator === '') continue; // baris kosong
+    foreach ($candidates as $candidate) {
+        $data = $candidate['data'];
+        $header = array_map(fn($h) => strtoupper(trim((string)$h)), $data[0] ?? []);
+        $col = fn($name) => array_search($name, $header);
 
-        if (!isset($puskesmasSet[strtoupper($namaPuskesmas)])) {
-            $errors[] = "Baris " . ($i+1) . ": Puskesmas '$namaPuskesmas' tidak dikenali";
+        $idxTahun     = $col('TAHUN');
+        $idxNoBulan   = $col('NO BULAN');
+        $idxBulan     = $col('BULAN');
+        $idxPuskesmas = $col('PUSKESMAS');
+        $idxIndikator = $col('INDIKATOR');
+        $idxSasaran   = $col('SASARAN');
+        $idxTargetThn = $col('TARGET TAHUNAN');
+        $idxTargetBln = $col('TARGET BULANAN');
+        $idxCapaian   = $col('CAPAIAN');
+
+        $wajib = compact('idxPuskesmas','idxIndikator','idxSasaran','idxTargetThn','idxTargetBln','idxCapaian');
+        foreach ($wajib as $key => $val) {
+            if ($val === false) {
+                $errors[] = "Sheet {$candidate['name']}: kolom wajib tidak ditemukan: $key";
+                continue 2;
+            }
+        }
+        if ($idxNoBulan === false && $idxBulan === false) {
+            $errors[] = "Sheet {$candidate['name']}: kolom wajib tidak ditemukan: BULAN atau NO BULAN";
             continue;
         }
-        if (!isset($indikatorSet[strtoupper($namaIndikator)])) {
-            $errors[] = "Baris " . ($i+1) . ": Indikator '$namaIndikator' tidak dikenali";
-            continue;
-        }
 
-        $bulan = null;
-        if ($idxNoBulan !== false) {
-            $v = (int)($r[$idxNoBulan] ?? 0);
-            if ($v >= 1 && $v <= 12) $bulan = $v;
-        }
-        if ($bulan === null && $idxBulan !== false) {
-            $bulan = BULAN_MAP[strtoupper(trim((string)($r[$idxBulan] ?? '')))] ?? null;
-        }
-        if ($bulan === null) {
-            $errors[] = "Baris " . ($i+1) . ": Bulan tidak dikenali";
-            continue;
-        }
+        $totalBarisDibaca += count($data) - 1;
 
-        $targetBln = (int)($r[$idxTargetBln] ?? 0);
-        $capaian   = (int)($r[$idxCapaian] ?? 0);
-        $persentase = $targetBln > 0 ? round(($capaian / $targetBln) * 100, 2) : 0;
+        for ($i = 1; $i < count($data); $i++) {
+            $r = $data[$i];
+            $namaPuskesmas = trim((string)($r[$idxPuskesmas] ?? ''));
+            $namaIndikator = trim((string)($r[$idxIndikator] ?? ''));
+            if ($namaPuskesmas === '' || $namaIndikator === '') continue; // baris kosong
 
-        $rows[] = [
-            'tahun'          => $idxTahun !== false ? (int)($r[$idxTahun] ?? 2026) : 2026,
-            'bulan'          => $bulan,
-            'puskesmas'      => $namaPuskesmas,
-            'indikator'      => $namaIndikator,
-            'sasaran'        => (int)($r[$idxSasaran] ?? 0),
-            'target_tahunan' => (int)($r[$idxTargetThn] ?? 0),
-            'target_bulanan' => $targetBln,
-            'capaian'        => $capaian,
-            'persentase'     => $persentase,
-            'status'         => hitungStatus($persentase),
-        ];
+            if (!isset($puskesmasSet[strtoupper($namaPuskesmas)])) {
+                $errors[] = "Sheet {$candidate['name']}, Baris " . ($i+1) . ": Puskesmas '$namaPuskesmas' tidak dikenali";
+                continue;
+            }
+            if (!isset($indikatorSet[strtoupper($namaIndikator)])) {
+                $errors[] = "Sheet {$candidate['name']}, Baris " . ($i+1) . ": Indikator '$namaIndikator' tidak dikenali";
+                continue;
+            }
+
+            $bulan = null;
+            if ($idxNoBulan !== false) {
+                $v = (int)($r[$idxNoBulan] ?? 0);
+                if ($v >= 1 && $v <= 12) $bulan = $v;
+            }
+            if ($bulan === null && $idxBulan !== false) {
+                $bulan = BULAN_MAP[strtoupper(trim((string)($r[$idxBulan] ?? '')))] ?? null;
+            }
+            if ($bulan === null) {
+                $errors[] = "Sheet {$candidate['name']}, Baris " . ($i+1) . ": Bulan tidak dikenali";
+                continue;
+            }
+
+            $targetBln = (int)($r[$idxTargetBln] ?? 0);
+            $capaian   = (int)($r[$idxCapaian] ?? 0);
+            $persentase = $targetBln > 0 ? round(($capaian / $targetBln) * 100, 2) : 0;
+
+            $rows[] = [
+                'tahun'          => $idxTahun !== false ? (int)($r[$idxTahun] ?? 2026) : 2026,
+                'bulan'          => $bulan,
+                'puskesmas'      => $namaPuskesmas,
+                'indikator'      => $namaIndikator,
+                'sasaran'        => (int)($r[$idxSasaran] ?? 0),
+                'target_tahunan' => (int)($r[$idxTargetThn] ?? 0),
+                'target_bulanan' => $targetBln,
+                'capaian'        => $capaian,
+                'persentase'     => $persentase,
+                'status'         => hitungStatus($persentase),
+            ];
+        }
     }
 
-    return ['rows' => $rows, 'errors' => $errors, 'total_baris_dibaca' => count($data) - 1];
+    return [
+        'rows' => $rows,
+        'errors' => $errors,
+        'total_baris_dibaca' => $totalBarisDibaca,
+        'sheets_dibaca' => array_map(fn($candidate) => $candidate['name'], $candidates),
+    ];
 }
