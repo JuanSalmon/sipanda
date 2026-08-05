@@ -11,12 +11,14 @@ const INDIKATOR_COLOR = {
     'HPV DNA': '#06b6d4',
 };
 const FALLBACK_INDICATOR_COLORS = ['#14b8a6', '#f97316', '#8b5cf6', '#0ea5e9', '#84cc16', '#e11d48'];
-const MONTH_LABELS = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'Mei',6:'Jun',7:'Jul',8:'Agu',9:'Sep',10:'Okt',11:'Nov',12:'Des'};
+const MONTH_LABELS = { 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun', 7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des' };
 
 let dashboardRows = [];
 let doughnutChartInstance = null;
 let lineChartInstance = null;
 let barChartInstance = null;
+let comboChartInstance = null;
+let gaugeChartInstances = {};
 let currentFilteredRows = [];
 const FILTER_STATE = {
     puskesmas: 'Semua',
@@ -45,6 +47,8 @@ async function loadDashboard() {
 
     setupFilterControls();
     syncDoughnutFilter();
+    syncComboFilter();
+    syncHeatmapFilter();
     renderDashboard();
 }
 
@@ -166,9 +170,12 @@ function renderDashboard() {
     const groupedForTable = buildTableRows(currentFilteredRows);
 
     renderScoreboard(currentFilteredRows);
+    renderGauges(currentFilteredRows);
     renderLineChart(currentFilteredRows);
+    renderComboChart(currentFilteredRows);
     renderBarChart(currentFilteredRows);
     renderDoughnut(currentFilteredRows);
+    renderHeatmap(currentFilteredRows);
     renderTabel(groupedForTable);
 }
 
@@ -202,9 +209,218 @@ function renderScoreboard(rows) {
         <div class="score-card" style="border-top-color:${STATUS_COLOR[s.status]}">
             <h4>${s.indikator}</h4>
             <div class="score-value">${Number(s.rata_persen).toFixed(1)}%</div>
-            <div class="score-sub">${s.total_capaian} / ${s.total_target} pasien</div>
+            <div class="score-sub">${s.total_capaian} / ${s.total_target} Orang</div>
             <div class="score-badge" style="background:${STATUS_COLOR[s.status]}">${s.status}</div>
         </div>`).join('');
+}
+
+const gaugeCenterTextPlugin = {
+    id: 'gaugeCenterText',
+    afterDraw(chart) {
+        const percent = chart.config.data.datasets[0].rawPercent;
+        if (percent === undefined || percent === null) return;
+        const { ctx, chartArea } = chart;
+        const centerX = (chartArea.left + chartArea.right) / 2;
+        const centerY = (chartArea.top + chartArea.bottom) / 2;
+        ctx.save();
+        ctx.font = "600 19px 'IBM Plex Mono', monospace";
+        ctx.fillStyle = '#0A5346';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${percent.toFixed(1)}%`, centerX, centerY);
+        ctx.restore();
+    },
+};
+
+const GAUGE_ORDER = ['Diabetes Mellitus', 'Hipertensi', 'HPV DNA', 'Usia Produktif'];
+
+function sortByGaugeOrder(indicators) {
+    return [...indicators].sort((a, b) => {
+        const ia = GAUGE_ORDER.indexOf(a);
+        const ib = GAUGE_ORDER.indexOf(b);
+        if (ia === -1 && ib === -1) return a.localeCompare(b);
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+    });
+}
+
+function renderGauges(rows) {
+    const container = document.getElementById('gaugeRow');
+    if (!container) return;
+
+    const indicatorGroups = rows.reduce((acc, row) => {
+        acc[row.indikator] = acc[row.indikator] || [];
+        acc[row.indikator].push(row);
+        return acc;
+    }, {});
+
+    const indicators = sortByGaugeOrder(Object.keys(indicatorGroups));
+
+    // Rebuild card markup only when the set of indicators changes, so
+    // Chart.js canvases aren't torn down/recreated needlessly on every filter change.
+    const expectedIds = indicators.map(ind => `gauge-${slugify(ind)}`);
+    const existingIds = Object.keys(gaugeChartInstances);
+    const needsRebuild = expectedIds.length !== existingIds.length || expectedIds.some(id => !existingIds.includes(id));
+
+    if (needsRebuild) {
+        Object.values(gaugeChartInstances).forEach(chart => chart.destroy());
+        gaugeChartInstances = {};
+        container.innerHTML = indicators.map(ind => {
+            const id = `gauge-${slugify(ind)}`;
+            return `
+            <div class="gauge-card">
+                <h4>${ind}</h4>
+                <div class="gauge-canvas-box">
+                    <canvas id="${id}"></canvas>
+                </div>
+                <div class="gauge-sub" id="${id}-sub"></div>
+            </div>`;
+        }).join('');
+    }
+
+    indicators.forEach(ind => {
+        const id = `gauge-${slugify(ind)}`;
+        const subset = indicatorGroups[ind];
+        const persen = formatCategoryValue(subset);
+        const clamped = Math.max(0, Math.min(persen, 100));
+        const status = getStatusFromPercent(persen);
+        const color = STATUS_COLOR[status];
+
+        const subEl = document.getElementById(`${id}-sub`);
+        if (subEl) {
+            const totalCapaian = subset.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
+            const totalTarget = subset.reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0);
+            subEl.textContent = `${totalCapaian} / ${totalTarget} Orang`;
+        }
+
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+
+        if (gaugeChartInstances[id]) {
+            const chart = gaugeChartInstances[id];
+            chart.data.datasets[0].data = [clamped, 100 - clamped];
+            chart.data.datasets[0].backgroundColor = [color, '#e5e9e7'];
+            chart.data.datasets[0].rawPercent = persen;
+            chart.update();
+        } else {
+            gaugeChartInstances[id] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [clamped, 100 - clamped],
+                        backgroundColor: [color, '#e5e9e7'],
+                        borderWidth: 0,
+                        rawPercent: persen,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    animation: { duration: 400 },
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                },
+                plugins: [gaugeCenterTextPlugin],
+            });
+        }
+    });
+}
+
+function slugify(text) {
+    return String(text).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function renderComboChart(rows) {
+    const select = document.getElementById('comboFilter');
+    const indikatorKey = select?.value || 'Semua';
+    const scoped = indikatorKey === 'Semua' ? rows : rows.filter(row => row.indikator === indikatorKey);
+
+    const grouped = scoped.reduce((acc, row) => {
+        acc[row.puskesmas] = acc[row.puskesmas] || [];
+        acc[row.puskesmas].push(row);
+        return acc;
+    }, {});
+
+    const puskesmasList = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
+    const targetData = puskesmasList.map(pkm => grouped[pkm].reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0));
+    const capaianData = puskesmasList.map(pkm => grouped[pkm].reduce((sum, row) => sum + Number(row.capaian || 0), 0));
+
+    if (comboChartInstance) comboChartInstance.destroy();
+    comboChartInstance = new Chart(document.getElementById('comboChart'), {
+        data: {
+            labels: puskesmasList,
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'Target Bulanan',
+                    data: targetData,
+                    backgroundColor: '#cbd5d1',
+                    order: 2,
+                },
+                {
+                    type: 'line',
+                    label: 'Capaian',
+                    data: capaianData,
+                    borderColor: '#0E7A63',
+                    backgroundColor: '#0E7A63',
+                    tension: 0.25,
+                    pointRadius: 4,
+                    order: 1,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true } },
+        },
+    });
+}
+
+function syncComboFilter() {
+    const select = document.getElementById('comboFilter');
+    if (!select) return;
+    const keys = ['Semua', ...getUniqueIndicators()];
+    select.innerHTML = keys.map(key => `<option value="${key}">${key}</option>`).join('');
+    select.addEventListener('change', () => renderComboChart(currentFilteredRows));
+}
+
+function renderHeatmap(rows) {
+    const headRow = document.getElementById('heatmapHeadRow');
+    const body = document.getElementById('heatmapBody');
+    if (!headRow || !body) return;
+
+    const select = document.getElementById('heatmapFilter');
+    const indikatorKey = select?.value || 'Semua';
+    const scoped = indikatorKey === 'Semua' ? rows : rows.filter(row => row.indikator === indikatorKey);
+
+    const months = [...new Set(rows.map(row => Number(row.bulan)))].filter(m => m >= 1 && m <= 12).sort((a, b) => a - b);
+    const puskesmasList = getUniquePuskesmas(rows);
+
+    headRow.innerHTML = `<th>Puskesmas</th>` + months.map(m => `<th>${MONTH_LABELS[m] || m}</th>`).join('');
+
+    body.innerHTML = puskesmasList.map(pkm => {
+        const cells = months.map(m => {
+            const subset = scoped.filter(row => row.puskesmas === pkm && Number(row.bulan) === m);
+            if (!subset.length) {
+                return `<td><span class="heatmap-cell heatmap-cell--empty">&ndash;</span></td>`;
+            }
+            const persen = formatCategoryValue(subset);
+            const status = getStatusFromPercent(persen);
+            return `<td><span class="heatmap-cell" style="background:${STATUS_COLOR[status]}">${Math.round(persen)}%</span></td>`;
+        }).join('');
+        return `<tr><td>${pkm}</td>${cells}</tr>`;
+    }).join('');
+}
+
+function syncHeatmapFilter() {
+    const select = document.getElementById('heatmapFilter');
+    if (!select) return;
+    const keys = ['Semua', ...getUniqueIndicators()];
+    select.innerHTML = keys.map(key => `<option value="${key}">${key}</option>`).join('');
+    select.addEventListener('change', () => renderHeatmap(currentFilteredRows));
 }
 
 function renderLineChart(rows) {

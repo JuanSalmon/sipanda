@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SIPANDA PTM - Dashboard Monitoring</title>
-<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -47,12 +47,30 @@
             <!-- 4 kartu scoreboard diisi via JS -->
         </section>
 
+        <p class="dashboard-section-title">Progress per Indikator</p>
+        <section class="gauge-row" id="gaugeRow">
+            <!-- kartu gauge per indikator diisi via JS -->
+        </section>
+
         <p class="dashboard-section-title">Tren Capaian</p>
         <section class="charts-row" style="grid-template-columns: 1fr;">
             <div class="chart-card">
                 <h3>Tren Rata-rata Capaian per Bulan</h3>
                 <div class="chart-canvas-box chart-canvas-box--short">
                     <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <p class="dashboard-section-title">Target vs Capaian per Puskesmas</p>
+        <section class="charts-row" style="grid-template-columns: 1fr;">
+            <div class="chart-card">
+                <div class="doughnut-header">
+                    <h3>Target vs Capaian (Pasien)</h3>
+                    <select id="comboFilter"></select>
+                </div>
+                <div class="chart-canvas-box chart-canvas-box--short">
+                    <canvas id="comboChart"></canvas>
                 </div>
             </div>
         </section>
@@ -69,6 +87,28 @@
             <div class="chart-card">
                 <h3>Ranking Puskesmas (Skor Gabungan 4 Indikator)</h3>
                 <canvas id="barChart"></canvas>
+            </div>
+        </section>
+
+        <p class="dashboard-section-title">Heatmap Monitoring</p>
+        <section class="charts-row" style="grid-template-columns: 1fr;">
+            <div class="chart-card table-card">
+                <div class="doughnut-header">
+                    <h3>Puskesmas &times; Bulan</h3>
+                    <select id="heatmapFilter"></select>
+                </div>
+                <div class="table-wrap heatmap-wrap">
+                    <table id="heatmapTable">
+                        <thead><tr id="heatmapHeadRow"></tr></thead>
+                        <tbody id="heatmapBody"></tbody>
+                    </table>
+                </div>
+                <div class="heatmap-legend">
+                    <span><i style="background:#22c55e"></i> &ge;100% Tercapai</span>
+                    <span><i style="background:#f59e0b"></i> 70&ndash;99% Perlu Ditingkatkan</span>
+                    <span><i style="background:#ef4444"></i> &lt;70% Belum Tercapai</span>
+                    <span><i style="background:#e5e7eb"></i> Tidak ada data</span>
+                </div>
             </div>
         </section>
 
@@ -94,6 +134,6 @@
 
     <footer class="footer">SIPANDA PTM &copy; 2026</footer>
 
-    <script src="assets/js/dashboard.js"></script>
+    <script src="assets/js/dashboard.js?v=<?= filemtime(__DIR__ . '/assets/js/dashboard.js') ?>"></script>
 </body>
 </html>

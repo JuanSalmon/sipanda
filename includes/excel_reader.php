@@ -4,7 +4,7 @@ require_once __DIR__ . '/functions.php';
 
 const PUSKESMAS_VALID = ['Baa','Batutua','Busalangga','Delha','Eahun','Feapopi',
     'Korbafo','Ndao','Oelaba','Oele','Sonimanu','Sotimori'];
-const INDIKATOR_VALID = ['Usia Produktif','Hipertensi','Diabetes Mellitus','HPV DNA'];
+const INDIKATOR_VALID = ['Usia Produktif','Hipertensi','Diabetes Melitus','HPV DNA Co Testing IVA'];
 
 const BULAN_MAP = [
     'JAN'=>1,'JANUARI'=>1,'FEB'=>2,'FEBRUARI'=>2,'MAR'=>3,'MARET'=>3,
