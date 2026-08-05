@@ -1,0 +1,220 @@
+/* ===========================================================
+   SIPANDA PTM — Sidebar navigation
+   Reuses the color/type tokens already defined in :root by
+   style.css (--primary, --card-bg, --border, etc). Load this
+   file AFTER style.css.
+   =========================================================== */
+
+.app-shell {
+    display: flex;
+    align-items: stretch;
+    min-height: 100vh;
+}
+
+.app-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+    width: 252px;
+    flex: none;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 18px 16px;
+    border-bottom: 1px solid var(--border);
+}
+.sidebar-brand-mark {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: 9px;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+}
+.sidebar-brand-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary-deep);
+    letter-spacing: -0.01em;
+}
+.sidebar-brand-title span { color: var(--text); }
+.sidebar-brand-sub {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.35;
+    margin-top: 2px;
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar-link,
+.sidebar-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+.sidebar-link:hover,
+.sidebar-group-toggle:hover { background: var(--card-sunken); }
+.sidebar-link.is-active { background: var(--primary-tint); color: var(--primary-deep); }
+
+.sidebar-icon { flex: none; font-size: 15px; line-height: 1; width: 18px; text-align: center; }
+
+.sidebar-link--disabled {
+    color: var(--muted);
+    cursor: not-allowed;
+}
+.sidebar-link--disabled:hover { background: transparent; }
+.sidebar-soon {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--card-sunken);
+    border-radius: 999px;
+    padding: 2px 8px;
+    flex: none;
+}
+
+/* ---------- Collapsible groups ---------- */
+
+.sidebar-group { display: flex; flex-direction: column; }
+.sidebar-caret {
+    margin-left: auto;
+    transition: transform .15s ease;
+    color: var(--muted);
+    font-size: 13px;
+}
+.sidebar-group.is-expanded .sidebar-caret { transform: rotate(90deg); }
+
+.sidebar-submenu {
+    display: grid;
+    grid-template-rows: 0fr;
+    overflow: hidden;
+    transition: grid-template-rows .18s ease;
+}
+.sidebar-submenu > div { overflow: hidden; }
+.sidebar-group.is-expanded .sidebar-submenu { grid-template-rows: 1fr; }
+
+.sidebar-submenu a {
+    display: block;
+    padding: 8px 12px 8px 40px;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+}
+.sidebar-submenu a:hover { background: var(--card-sunken); color: var(--text); }
+.sidebar-submenu a.is-active { color: var(--primary-deep); font-weight: 600; background: var(--primary-tint); }
+
+.sidebar-group-note {
+    margin: 2px 12px 8px 40px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.sidebar-footer {
+    border-top: 1px solid var(--border);
+    padding: 12px 10px;
+}
+.sidebar-footer-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: #fff;
+    background: var(--primary);
+    font-size: 13.5px;
+    font-weight: 500;
+}
+.sidebar-footer-link:hover { background: var(--primary-deep); }
+
+/* ---------- Mobile hamburger + off-canvas ---------- */
+
+.sidebar-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    font-size: 18px;
+    cursor: pointer;
+    flex: none;
+}
+
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(19, 36, 31, 0.4);
+    z-index: 35;
+}
+.sidebar-backdrop.is-open { display: block; }
+
+@media (max-width: 900px) {
+    .sidebar-toggle { display: flex; }
+
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        z-index: 40;
+        transform: translateX(-100%);
+        transition: transform .2s ease;
+        box-shadow: var(--shadow);
+    }
+    .sidebar.is-open { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar, .sidebar-submenu, .sidebar-caret { transition: none !important; }
+}
