@@ -501,6 +501,9 @@ function renderBarChart(rows) {
     });
 }
 
+// Skor Gabungan = (total capaian across ALL indicators) / (total target across ALL indicators) x 100.
+// This weights each puskesmas's rank by target size (an indicator with a big target dominates the
+// score), unlike the old approach which averaged each indicator's independent percentage equally.
 function buildBarChartRows(rows) {
     const grouped = rows.reduce((acc, row) => {
         acc[row.puskesmas] = acc[row.puskesmas] || [];
@@ -508,19 +511,10 @@ function buildBarChartRows(rows) {
         return acc;
     }, {});
 
-    const indicatorList = getUniqueIndicators(rows);
-    const result = Object.keys(grouped).map((puskesmas) => {
-        const indikatorValues = indicatorList.map((indikator) => {
-            const subset = grouped[puskesmas].filter(row => row.indikator === indikator);
-            return subset.length ? formatCategoryValue(subset) : 0;
-        }).filter(value => value > 0);
-
-        const skor_gabungan = indikatorValues.length
-            ? Number((indikatorValues.reduce((sum, value) => sum + value, 0) / indikatorValues.length).toFixed(1))
-            : 0;
-
-        return { puskesmas, skor_gabungan };
-    }).sort((a, b) => b.skor_gabungan - a.skor_gabungan);
+    const result = Object.keys(grouped).map((puskesmas) => ({
+        puskesmas,
+        skor_gabungan: formatCategoryValue(grouped[puskesmas]),
+    })).sort((a, b) => b.skor_gabungan - a.skor_gabungan);
 
     return result;
 }
