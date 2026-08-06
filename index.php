@@ -27,11 +27,6 @@
                 </button>
             </div>
 
-            <div class="sidebar-nav-search">
-                <svg class="sidebar-nav-search-icon" id="sidebarNavSearchIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="sidebarNavSearch" placeholder="Cari menu...">
-            </div>
-
             <nav class="sidebar-nav">
                 <a class="sidebar-link is-active" href="#top" data-target="top" title="Dashboard">
                     <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></span>
@@ -72,10 +67,10 @@
                         <span class="sidebar-caret">›</span>
                     </button>
                     <div class="sidebar-submenu"><div>
-                        <a href="admin/login.php">Data Capaian</a>
-                        <a href="admin/login.php">Data Target</a>
-                        <a href="admin/login.php">Data Puskesmas</a>
-                        <a href="admin/login.php">Data Indikator</a>
+                        <a href="#" data-open-login>Data Capaian</a>
+                        <a href="#" data-open-login>Data Target</a>
+                        <a href="#" data-open-login>Data Puskesmas</a>
+                        <a href="#" data-open-login>Data Indikator</a>
                     </div></div>
                     <p class="sidebar-group-note">Kelola lewat login admin (unggah Excel)</p>
                 </div>
@@ -83,7 +78,7 @@
             </nav>
 
             <div class="sidebar-footer">
-                <a class="sidebar-footer-link" href="admin/login.php" title="Login Admin">
+                <a class="sidebar-footer-link" href="#" data-open-login title="Login Admin">
                     <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
                     <span class="sidebar-label">Login Admin</span>
                 </a>
@@ -251,7 +246,27 @@
         </div>
     </div>
 
+    <div class="login-modal-backdrop" id="loginModalBackdrop">
+        <div class="login-modal-card" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+            <button type="button" class="login-modal-close" id="loginModalClose" aria-label="Tutup">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <img class="login-modal-logo" src="assets/img/logo-mark.png" alt="SIPANDA PTM">
+            <h2 id="loginModalTitle">Login Admin</h2>
+            <p class="login-modal-sub">Masuk untuk mengelola data SIPANDA PTM</p>
+            <div class="login-modal-error" id="loginModalError" hidden></div>
+            <form id="loginModalForm">
+                <label for="loginUsername">Username</label>
+                <input type="text" id="loginUsername" name="username" required autocomplete="username">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" name="password" required autocomplete="current-password">
+                <button type="submit" id="loginModalSubmit">Masuk</button>
+            </form>
+        </div>
+    </div>
+
     <script src="assets/js/dashboard.js?v=<?= filemtime(__DIR__ . '/assets/js/dashboard.js') ?>"></script>
     <script src="assets/js/sidebar.js?v=<?= filemtime(__DIR__ . '/assets/js/sidebar.js') ?>"></script>
+    <script src="assets/js/login-modal.js?v=<?= filemtime(__DIR__ . '/assets/js/login-modal.js') ?>"></script>
 </body>
 </html>
