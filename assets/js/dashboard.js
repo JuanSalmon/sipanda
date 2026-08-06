@@ -264,9 +264,16 @@ function renderComboChart(rows) {
         return acc;
     }, {});
 
-    const puskesmasList = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
-    const targetData = puskesmasList.map(pkm => grouped[pkm].reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0));
-    const capaianData = puskesmasList.map(pkm => grouped[pkm].reduce((sum, row) => sum + Number(row.capaian || 0), 0));
+    // Cap 10-12 PKM, sort by capaian desc (reviewer feedback) instead of alphabetical.
+    const ranked = Object.keys(grouped).map(pkm => ({
+        pkm,
+        target: grouped[pkm].reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0),
+        capaian: grouped[pkm].reduce((sum, row) => sum + Number(row.capaian || 0), 0),
+    })).sort((a, b) => b.capaian - a.capaian).slice(0, 12);
+
+    const puskesmasList = ranked.map(r => r.pkm);
+    const targetData = ranked.map(r => r.target);
+    const capaianData = ranked.map(r => r.capaian);
 
     if (comboChartInstance) comboChartInstance.destroy();
     comboChartInstance = new Chart(document.getElementById('comboChart'), {
@@ -281,22 +288,20 @@ function renderComboChart(rows) {
                     order: 2,
                 },
                 {
-                    type: 'line',
+                    type: 'bar',
                     label: 'Capaian',
                     data: capaianData,
-                    borderColor: '#0E7A63',
                     backgroundColor: '#0E7A63',
-                    tension: 0.25,
-                    pointRadius: 4,
                     order: 1,
                 },
             ],
         },
         options: {
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             plugins: { legend: { position: 'bottom' } },
-            scales: { y: { beginAtZero: true } },
+            scales: { x: { beginAtZero: true } },
         },
     });
 }

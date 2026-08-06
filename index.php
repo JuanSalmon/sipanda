@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SIPANDA PTM - Dashboard Monitoring</title>
+<link rel="icon" type="image/png" href="assets/img/logo-mark.png">
 <link rel="stylesheet" href="assets/css/style.css?v=<?= filemtime(__DIR__ . '/assets/css/style.css') ?>">
 <link rel="stylesheet" href="assets/css/sidebar.css?v=<?= filemtime(__DIR__ . '/assets/css/sidebar.css') ?>">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -14,7 +15,9 @@
     <div class="app-shell">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
-                <div class="sidebar-brand-mark">S</div>
+                <div class="sidebar-brand-mark">
+                    <img src="assets/img/logo-mark.png" alt="SIPANDA PTM">
+                </div>
                 <div class="sidebar-brand-text">
                     <div class="sidebar-brand-title">SIPANDA <span>PTM</span></div>
                     <div class="sidebar-brand-sub">Sistem Informasi Pemantauan Data PTM</div>
@@ -163,7 +166,7 @@
                             <h3>Target vs Capaian (Pasien)</h3>
                             <select id="comboFilter"></select>
                         </div>
-                        <div class="chart-canvas-box chart-canvas-box--short">
+                        <div class="chart-canvas-box chart-canvas-box--tall">
                             <canvas id="comboChart"></canvas>
                         </div>
                     </div>
