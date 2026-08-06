@@ -44,7 +44,6 @@
                     <div class="sidebar-submenu"><div>
                         <a href="#scoreboards" data-target="scoreboards">Ringkasan Capaian</a>
                         <a href="#monitorTable" data-target="monitorTable">Monitoring per Puskesmas</a>
-                        <a href="#gaugeRow" data-target="gaugeRow">Monitoring per Indikator</a>
                         <a href="#heatmapTable" data-target="heatmapTable">Monitoring Bulanan</a>
                     </div></div>
                 </div>
@@ -78,17 +77,6 @@
                     <p class="sidebar-group-note">Kelola lewat login admin (unggah Excel)</p>
                 </div>
 
-                <a class="sidebar-link sidebar-link--disabled" href="#" aria-disabled="true" onclick="return false;" title="Laporan">
-                    <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><line x1="10" y1="12" x2="15" y2="12"/><line x1="10" y1="16" x2="15" y2="16"/></svg></span>
-                    <span class="sidebar-label">Laporan</span>
-                    <span class="sidebar-soon">Segera hadir</span>
-                </a>
-
-                <a class="sidebar-link sidebar-link--disabled" href="#" aria-disabled="true" onclick="return false;" title="Pengaturan">
-                    <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.37a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.63 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06A2 2 0 1 1 7.06 4.24l.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15 4.63a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg></span>
-                    <span class="sidebar-label">Pengaturan</span>
-                    <span class="sidebar-soon">Segera hadir</span>
-                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -156,11 +144,6 @@
                             <span id="progressKabupatenStatus"></span>
                         </div>
                     </div>
-                </section>
-
-                <p class="dashboard-section-title">Progress per Indikator</p>
-                <section class="gauge-row" id="gaugeRow">
-                    <!-- kartu gauge per indikator diisi via JS -->
                 </section>
 
                 <p class="dashboard-section-title">Tren Capaian</p>

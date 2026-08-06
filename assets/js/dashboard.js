@@ -13,14 +13,21 @@ const INDIKATOR_COLOR = {
 const FALLBACK_INDICATOR_COLORS = ['#14b8a6', '#f97316', '#8b5cf6', '#0ea5e9', '#84cc16', '#e11d48'];
 const MONTH_LABELS = { 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun', 7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des' };
 
-// Target tahunan Kabupaten (SASARAN 1 tahun), dipakai untuk Progress Kabupaten.
-const ANNUAL_TARGET = {
-    'Usia Produktif': 92399,
-    'Hipertensi': 4346,
-    'Diabetes Mellitus': 1086,
-    'HPV DNA': 2330,
-};
-const ANNUAL_TARGET_TOTAL = Object.values(ANNUAL_TARGET).reduce((sum, v) => sum + v, 0);
+// Target dipakai untuk scoreboard & Progress Kabupaten dihitung LANGSUNG dari data
+// Excel (target_tahunan per Puskesmas), bukan angka tetap. Diskalakan sesuai jumlah
+// bulan yang benar-benar ada di data (mis. 6 bulan -> 6/12 dari target tahunan), jadi
+// otomatis tetap benar walau tahun datanya beda atau bulan datanya nanti ditambah.
+function computeTargetForRows(rows) {
+    const monthsPresent = new Set(rows.map((r) => r.bulan)).size || 12;
+    const fraction = Math.min(monthsPresent / 12, 1);
+    const seen = new Map();
+    rows.forEach((row) => {
+        const key = `${row.puskesmas}|${row.indikator}`;
+        if (!seen.has(key)) seen.set(key, Number(row.target_tahunan || 0));
+    });
+    const annualSum = Array.from(seen.values()).reduce((sum, v) => sum + v, 0);
+    return Math.round(annualSum * fraction);
+}
 
 let rankMode = 'semua';
 
@@ -29,7 +36,6 @@ let doughnutChartInstance = null;
 let lineChartInstance = null;
 let barChartInstance = null;
 let comboChartInstance = null;
-let gaugeChartInstances = {};
 let currentFilteredRows = [];
 const FILTER_STATE = {
     puskesmas: 'Semua',
@@ -183,7 +189,6 @@ function renderDashboard() {
 
     renderScoreboard(currentFilteredRows);
     renderProgressKabupaten(currentFilteredRows);
-    renderGauges(currentFilteredRows);
     renderLineChart(currentFilteredRows);
     renderComboChart(currentFilteredRows);
     renderBarChart(currentFilteredRows);
@@ -200,14 +205,15 @@ function renderProgressKabupaten(rows) {
     if (!fill || !percentEl || !numbersEl || !statusEl) return;
 
     const totalCapaian = rows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
-    const persen = ANNUAL_TARGET_TOTAL > 0 ? Number(((totalCapaian / ANNUAL_TARGET_TOTAL) * 100).toFixed(1)) : 0;
+    const totalTarget = computeTargetForRows(rows);
+    const persen = totalTarget > 0 ? Number(((totalCapaian / totalTarget) * 100).toFixed(1)) : 0;
     const status = getStatusFromPercent(persen);
     const clamped = Math.max(0, Math.min(persen, 100));
 
     fill.style.width = `${clamped}%`;
     fill.style.background = STATUS_COLOR[status];
     percentEl.textContent = `${persen}%`;
-    numbersEl.textContent = `${totalCapaian.toLocaleString('id-ID')} / ${ANNUAL_TARGET_TOTAL.toLocaleString('id-ID')} Orang`;
+    numbersEl.textContent = `${totalCapaian.toLocaleString('id-ID')} / ${totalTarget.toLocaleString('id-ID')} Orang`;
     statusEl.textContent = status;
     statusEl.style.color = STATUS_COLOR[status];
 }
@@ -224,10 +230,10 @@ function renderScoreboard(rows) {
 
     const scoreboard = Object.keys(indicatorGroups).map((indikator) => {
         const indicatorRows = indicatorGroups[indikator];
-        const persen = formatCategoryValue(indicatorRows);
-        const status = getStatusFromPercent(persen);
         const totalCapaian = indicatorRows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
-        const totalTarget = indicatorRows.reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0);
+        const totalTarget = computeTargetForRows(indicatorRows);
+        const persen = totalTarget > 0 ? Number(((totalCapaian / totalTarget) * 100).toFixed(1)) : 0;
+        const status = getStatusFromPercent(persen);
 
         return {
             indikator,
@@ -245,123 +251,6 @@ function renderScoreboard(rows) {
             <div class="score-sub">${s.total_capaian} / ${s.total_target} Orang</div>
             <div class="score-badge" style="background:${STATUS_COLOR[s.status]}">${s.status}</div>
         </div>`).join('');
-}
-
-const gaugeCenterTextPlugin = {
-    id: 'gaugeCenterText',
-    afterDraw(chart) {
-        const percent = chart.config.data.datasets[0].rawPercent;
-        if (percent === undefined || percent === null) return;
-        const { ctx, chartArea } = chart;
-        const centerX = (chartArea.left + chartArea.right) / 2;
-        const centerY = (chartArea.top + chartArea.bottom) / 2;
-        ctx.save();
-        ctx.font = "600 19px 'IBM Plex Mono', monospace";
-        ctx.fillStyle = '#0A5346';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${percent.toFixed(1)}%`, centerX, centerY);
-        ctx.restore();
-    },
-};
-
-const GAUGE_ORDER = ['Diabetes Mellitus', 'Hipertensi', 'HPV DNA', 'Usia Produktif'];
-
-function sortByGaugeOrder(indicators) {
-    return [...indicators].sort((a, b) => {
-        const ia = GAUGE_ORDER.indexOf(a);
-        const ib = GAUGE_ORDER.indexOf(b);
-        if (ia === -1 && ib === -1) return a.localeCompare(b);
-        if (ia === -1) return 1;
-        if (ib === -1) return -1;
-        return ia - ib;
-    });
-}
-
-function renderGauges(rows) {
-    const container = document.getElementById('gaugeRow');
-    if (!container) return;
-
-    const indicatorGroups = rows.reduce((acc, row) => {
-        acc[row.indikator] = acc[row.indikator] || [];
-        acc[row.indikator].push(row);
-        return acc;
-    }, {});
-
-    const indicators = sortByGaugeOrder(Object.keys(indicatorGroups));
-
-    // Rebuild card markup only when the set of indicators changes, so
-    // Chart.js canvases aren't torn down/recreated needlessly on every filter change.
-    const expectedIds = indicators.map(ind => `gauge-${slugify(ind)}`);
-    const existingIds = Object.keys(gaugeChartInstances);
-    const needsRebuild = expectedIds.length !== existingIds.length || expectedIds.some(id => !existingIds.includes(id));
-
-    if (needsRebuild) {
-        Object.values(gaugeChartInstances).forEach(chart => chart.destroy());
-        gaugeChartInstances = {};
-        container.innerHTML = indicators.map(ind => {
-            const id = `gauge-${slugify(ind)}`;
-            return `
-            <div class="gauge-card">
-                <h4>${ind}</h4>
-                <div class="gauge-canvas-box">
-                    <canvas id="${id}"></canvas>
-                </div>
-                <div class="gauge-sub" id="${id}-sub"></div>
-            </div>`;
-        }).join('');
-    }
-
-    indicators.forEach(ind => {
-        const id = `gauge-${slugify(ind)}`;
-        const subset = indicatorGroups[ind];
-        const persen = formatCategoryValue(subset);
-        const clamped = Math.max(0, Math.min(persen, 100));
-        const status = getStatusFromPercent(persen);
-        const color = STATUS_COLOR[status];
-
-        const subEl = document.getElementById(`${id}-sub`);
-        if (subEl) {
-            const totalCapaian = subset.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
-            const totalTarget = subset.reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0);
-            subEl.textContent = `${totalCapaian} / ${totalTarget} Orang`;
-        }
-
-        const ctx = document.getElementById(id);
-        if (!ctx) return;
-
-        if (gaugeChartInstances[id]) {
-            const chart = gaugeChartInstances[id];
-            chart.data.datasets[0].data = [clamped, 100 - clamped];
-            chart.data.datasets[0].backgroundColor = [color, '#e5e9e7'];
-            chart.data.datasets[0].rawPercent = persen;
-            chart.update();
-        } else {
-            gaugeChartInstances[id] = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    datasets: [{
-                        data: [clamped, 100 - clamped],
-                        backgroundColor: [color, '#e5e9e7'],
-                        borderWidth: 0,
-                        rawPercent: persen,
-                    }],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '72%',
-                    animation: { duration: 400 },
-                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                },
-                plugins: [gaugeCenterTextPlugin],
-            });
-        }
-    });
-}
-
-function slugify(text) {
-    return String(text).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
 function renderComboChart(rows) {
