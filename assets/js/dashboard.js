@@ -13,6 +13,17 @@ const INDIKATOR_COLOR = {
 const FALLBACK_INDICATOR_COLORS = ['#14b8a6', '#f97316', '#8b5cf6', '#0ea5e9', '#84cc16', '#e11d48'];
 const MONTH_LABELS = { 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun', 7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des' };
 
+// Target tahunan Kabupaten (SASARAN 1 tahun), dipakai untuk Progress Kabupaten.
+const ANNUAL_TARGET = {
+    'Usia Produktif': 92399,
+    'Hipertensi': 4346,
+    'Diabetes Mellitus': 1086,
+    'HPV DNA': 2330,
+};
+const ANNUAL_TARGET_TOTAL = Object.values(ANNUAL_TARGET).reduce((sum, v) => sum + v, 0);
+
+let rankMode = 'semua';
+
 let dashboardRows = [];
 let doughnutChartInstance = null;
 let lineChartInstance = null;
@@ -46,6 +57,7 @@ async function loadDashboard() {
     dashboardRows = Array.isArray(data.raw_rows) ? data.raw_rows : [];
 
     setupFilterControls();
+    setupRankToggle();
     syncDoughnutFilter();
     syncComboFilter();
     syncHeatmapFilter();
@@ -170,6 +182,7 @@ function renderDashboard() {
     const groupedForTable = buildTableRows(currentFilteredRows);
 
     renderScoreboard(currentFilteredRows);
+    renderProgressKabupaten(currentFilteredRows);
     renderGauges(currentFilteredRows);
     renderLineChart(currentFilteredRows);
     renderComboChart(currentFilteredRows);
@@ -177,6 +190,26 @@ function renderDashboard() {
     renderDoughnut(currentFilteredRows);
     renderHeatmap(currentFilteredRows);
     renderTabel(groupedForTable);
+}
+
+function renderProgressKabupaten(rows) {
+    const fill = document.getElementById('progressKabupatenFill');
+    const percentEl = document.getElementById('progressKabupatenPercent');
+    const numbersEl = document.getElementById('progressKabupatenNumbers');
+    const statusEl = document.getElementById('progressKabupatenStatus');
+    if (!fill || !percentEl || !numbersEl || !statusEl) return;
+
+    const totalCapaian = rows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
+    const persen = ANNUAL_TARGET_TOTAL > 0 ? Number(((totalCapaian / ANNUAL_TARGET_TOTAL) * 100).toFixed(1)) : 0;
+    const status = getStatusFromPercent(persen);
+    const clamped = Math.max(0, Math.min(persen, 100));
+
+    fill.style.width = `${clamped}%`;
+    fill.style.background = STATUS_COLOR[status];
+    percentEl.textContent = `${persen}%`;
+    numbersEl.textContent = `${totalCapaian.toLocaleString('id-ID')} / ${ANNUAL_TARGET_TOTAL.toLocaleString('id-ID')} Orang`;
+    statusEl.textContent = status;
+    statusEl.style.color = STATUS_COLOR[status];
 }
 
 function renderScoreboard(rows) {
@@ -477,7 +510,7 @@ function buildLineChartRows(rows) {
 }
 
 function renderBarChart(rows) {
-    const rankRows = buildBarChartRows(rows);
+    const rankRows = buildBarChartRows(rows, rankMode);
     if (barChartInstance) barChartInstance.destroy();
 
     barChartInstance = new Chart(document.getElementById('barChart'), {
@@ -496,15 +529,28 @@ function renderBarChart(rows) {
         options: {
             indexAxis: 'y',
             responsive: true,
+            maintainAspectRatio: false,
             plugins: { legend: { display: false } },
         },
+    });
+}
+
+function setupRankToggle() {
+    const wrap = document.getElementById('rankToggle');
+    if (!wrap) return;
+    wrap.querySelectorAll('button[data-mode]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            rankMode = btn.dataset.mode;
+            wrap.querySelectorAll('button[data-mode]').forEach(b => b.classList.toggle('is-active', b === btn));
+            renderBarChart(currentFilteredRows);
+        });
     });
 }
 
 // Skor Gabungan = (total capaian across ALL indicators) / (total target across ALL indicators) x 100.
 // This weights each puskesmas's rank by target size (an indicator with a big target dominates the
 // score), unlike the old approach which averaged each indicator's independent percentage equally.
-function buildBarChartRows(rows) {
+function buildBarChartRows(rows, mode = 'semua') {
     const grouped = rows.reduce((acc, row) => {
         acc[row.puskesmas] = acc[row.puskesmas] || [];
         acc[row.puskesmas].push(row);
@@ -516,6 +562,8 @@ function buildBarChartRows(rows) {
         skor_gabungan: formatCategoryValue(grouped[puskesmas]),
     })).sort((a, b) => b.skor_gabungan - a.skor_gabungan);
 
+    if (mode === 'top5') return result.slice(0, 5);
+    if (mode === 'bottom5') return result.slice(-5).sort((a, b) => b.skor_gabungan - a.skor_gabungan);
     return result;
 }
 
@@ -533,7 +581,7 @@ function renderDoughnut(rows) {
             labels,
             datasets: [{ data: values, backgroundColor: labels.map(label => STATUS_COLOR[label]) }],
         },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
     });
 }
 

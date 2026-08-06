@@ -25,6 +25,7 @@ body {
     background: var(--bg);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
 }
 ::selection { background: var(--primary); color: #fff; }
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -83,7 +84,7 @@ body {
 .admin-link:hover { background: var(--primary-deep); }
 
 /* Dashboard layout */
-.dashboard { padding: 28px 24px 60px; max-width: 1300px; margin: 0 auto; }
+.dashboard { padding: 28px 24px 60px; max-width: 1300px; margin: 0 auto; min-width: 0; }
 
 .toolbar-card {
     background: var(--card-bg);
@@ -211,8 +212,8 @@ body {
 .gauge-sub { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
 
 /* Heatmap */
-.heatmap-wrap { max-height: 420px; }
-#heatmapTable { table-layout: fixed; }
+.heatmap-wrap { max-height: 420px; overflow-x: auto; }
+#heatmapTable { table-layout: fixed; min-width: 640px; }
 #heatmapTable th, #heatmapTable td {
     text-align: center;
     padding: 8px 4px;
@@ -275,6 +276,46 @@ body {
    the container's width). Requires maintainAspectRatio:false in JS. */
 .chart-canvas-box { position: relative; width: 100%; }
 .chart-canvas-box--short { height: 260px; }
+.chart-canvas-box--tall { height: 340px; }
+
+/* Progress Kabupaten bar */
+.progress-kabupaten { display: grid; gap: 8px; }
+.progress-kabupaten-track {
+    width: 100%;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--card-sunken);
+    overflow: hidden;
+}
+.progress-kabupaten-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--primary);
+    transition: width .4s ease;
+}
+.progress-kabupaten-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+}
+.progress-kabupaten-label strong { color: var(--primary-deep); font-size: 15px; }
+
+/* Ranking toggle */
+.rank-toggle { display: flex; gap: 6px; }
+.rank-toggle button {
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card-sunken);
+    color: var(--muted);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.rank-toggle button.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
 
 .doughnut-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .doughnut-header h3 { margin: 0; }
@@ -309,6 +350,7 @@ body {
 .table-wrap {
     max-height: 460px;
     overflow-y: auto;
+    overflow-x: auto;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
 }

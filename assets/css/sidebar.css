@@ -31,15 +31,35 @@
     top: 0;
     height: 100vh;
     overflow-y: auto;
+    transition: width .18s ease;
 }
+
+.sidebar-icon svg { width: 18px; height: 18px; display: block; }
 
 .sidebar-brand {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 20px 18px 16px;
+    padding: 20px 14px 16px 18px;
     border-bottom: 1px solid var(--border);
 }
+.sidebar-brand-text { flex: 1; min-width: 0; overflow: hidden; }
+
+.sidebar-collapse-btn {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+}
+.sidebar-collapse-btn:hover { background: var(--card-sunken); color: var(--text); }
+.sidebar-collapse-btn svg { width: 15px; height: 15px; transition: transform .18s ease; }
 .sidebar-brand-mark {
     width: 34px;
     height: 34px;
@@ -99,7 +119,11 @@
 .sidebar-group-toggle:hover { background: var(--card-sunken); }
 .sidebar-link.is-active { background: var(--primary-tint); color: var(--primary-deep); }
 
-.sidebar-icon { flex: none; font-size: 15px; line-height: 1; width: 18px; text-align: center; }
+.sidebar-icon { flex: none; font-size: 15px; line-height: 1; width: 18px; text-align: center; color: var(--muted); }
+.sidebar-link.is-active .sidebar-icon,
+.sidebar-link:hover .sidebar-icon,
+.sidebar-group-toggle:hover .sidebar-icon { color: var(--primary-deep); }
+.sidebar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .sidebar-link--disabled {
     color: var(--muted);
@@ -174,8 +198,68 @@
 }
 .sidebar-footer-link:hover { background: var(--primary-deep); }
 
+/* ---------- Collapsed (desktop icon rail) ---------- */
+
+.sidebar.is-collapsed { width: 72px; }
+.sidebar.is-collapsed .sidebar-brand { justify-content: center; padding: 20px 0 16px; }
+.sidebar.is-collapsed .sidebar-brand-text,
+.sidebar.is-collapsed .sidebar-label,
+.sidebar.is-collapsed .sidebar-caret,
+.sidebar.is-collapsed .sidebar-submenu,
+.sidebar.is-collapsed .sidebar-group-note,
+.sidebar.is-collapsed .sidebar-soon { display: none; }
+.sidebar.is-collapsed .sidebar-link,
+.sidebar.is-collapsed .sidebar-group-toggle,
+.sidebar.is-collapsed .sidebar-footer-link { justify-content: center; padding: 10px; }
+.sidebar.is-collapsed .sidebar-collapse-btn svg { transform: rotate(180deg); }
+.sidebar.is-collapsed .sidebar-nav-search { padding: 0 8px 10px; }
+.sidebar.is-collapsed .sidebar-nav-search input { display: none; }
+.sidebar.is-collapsed .sidebar-nav-search-icon { position: static; transform: none; margin: 0 auto; }
+
+/* ---------- Sidebar search box ---------- */
+
+.sidebar-nav-search { position: relative; padding: 0 10px 10px; }
+.sidebar-nav-search-icon {
+    position: absolute;
+    left: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    color: var(--muted);
+    pointer-events: none;
+}
+.sidebar-nav-search input {
+    width: 100%;
+    padding: 8px 10px 8px 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--card-sunken);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12.5px;
+}
+.sidebar-nav-search input:focus { background: var(--card-bg); }
+.sidebar-link[hidden], .sidebar-group[hidden], .sidebar-submenu a[hidden] { display: none; }
+
+/* ---------- Generic search-icon input (dashboard search box) ---------- */
+
+.search-field { position: relative; }
+.search-field-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    color: var(--muted);
+    pointer-events: none;
+}
+.search-field input { padding-left: 36px !important; }
+
 /* ---------- Mobile hamburger + off-canvas ---------- */
 
+.sidebar-toggle svg { width: 18px; height: 18px; }
 .sidebar-toggle {
     display: none;
     align-items: center;
@@ -201,6 +285,14 @@
 
 @media (max-width: 900px) {
     .sidebar-toggle { display: flex; }
+    .sidebar-collapse-btn { display: none; }
+    .sidebar.is-collapsed { width: 252px; }
+    .sidebar.is-collapsed .sidebar-brand-text,
+    .sidebar.is-collapsed .sidebar-label,
+    .sidebar.is-collapsed .sidebar-caret,
+    .sidebar.is-collapsed .sidebar-group-note,
+    .sidebar.is-collapsed .sidebar-soon { display: revert; }
+    .sidebar.is-collapsed .sidebar-nav-search input { display: block; }
 
     .sidebar {
         position: fixed;
