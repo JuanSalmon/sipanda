@@ -6,32 +6,36 @@
    =========================================================== */
 
 .app-shell {
-    display: flex;
-    align-items: stretch;
     min-height: 100vh;
 }
 
 .app-main {
-    flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
+    margin-left: 252px;
+    transition: margin-left .18s ease;
 }
 
 /* ---------- Sidebar ---------- */
 
+/* Fixed to the viewport — always visible top-to-bottom regardless of
+   page scroll position or page length. .app-main's margin-left makes
+   room for it in normal flow. */
 .sidebar {
     width: 252px;
-    flex: none;
     background: var(--card-bg);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    position: sticky;
+    position: fixed;
+    left: 0;
     top: 0;
+    bottom: 0;
     height: 100vh;
     overflow-y: auto;
     transition: width .18s ease;
+    z-index: 30;
 }
 
 .sidebar-icon svg { width: 18px; height: 18px; display: block; }
@@ -203,6 +207,7 @@
 /* ---------- Collapsed (desktop icon rail) ---------- */
 
 .sidebar.is-collapsed { width: 72px; }
+.app-shell:has(.sidebar.is-collapsed) .app-main { margin-left: 72px; }
 .sidebar.is-collapsed .sidebar-brand { justify-content: center; padding: 20px 0 16px; }
 .sidebar.is-collapsed .sidebar-brand-text,
 .sidebar.is-collapsed .sidebar-label,
@@ -259,6 +264,9 @@
 .sidebar-backdrop.is-open { display: block; }
 
 @media (max-width: 900px) {
+    .app-main { margin-left: 0; }
+    .app-shell:has(.sidebar.is-collapsed) .app-main { margin-left: 0; }
+
     .sidebar-toggle { display: flex; }
     .sidebar-collapse-btn { display: none; }
     .sidebar.is-collapsed { width: 252px; }
@@ -269,10 +277,6 @@
     .sidebar.is-collapsed .sidebar-soon { display: revert; }
 
     .sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
-        bottom: 0;
         z-index: 40;
         transform: translateX(-100%);
         transition: transform .2s ease;
@@ -282,7 +286,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .sidebar, .sidebar-submenu, .sidebar-caret { transition: none !important; }
+    .sidebar, .sidebar-submenu, .sidebar-caret, .app-main { transition: none !important; }
 }
 /* ---------- Floating login card ---------- */
 

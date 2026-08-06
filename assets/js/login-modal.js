@@ -41,7 +41,7 @@
         submitBtn.textContent = 'Memproses...';
 
         try {
-            const res = await fetch('api/login.php', {
+            const res = await fetch('admin/login.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

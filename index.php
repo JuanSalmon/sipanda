@@ -20,7 +20,7 @@
                 </div>
                 <div class="sidebar-brand-text">
                     <div class="sidebar-brand-title">SIPANDA <span>PTM</span></div>
-                    <div class="sidebar-brand-sub">Sistem Informasi Pemantauan Data PTM</div>
+                    <div class="sidebar-brand-sub">Sarana Informasi Penyajian dan Analisis Data Penyakit Tidak Menular</div>
                 </div>
                 <button class="sidebar-collapse-btn" id="sidebarCollapse" type="button" aria-expanded="true" aria-label="Ciutkan sidebar" title="Ciutkan sidebar">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>

@@ -2,9 +2,9 @@
 // SIPANDA PTM - Jalankan SEKALI untuk membuat akun admin pertama, lalu HAPUS file ini.
 require_once __DIR__ . '/config/database.php';
 
-$username = 'admin';
-$password = 'admin123'; // GANTI ini sebelum dijalankan di server produksi
-$namaLengkap = 'Administrator';
+$username = 'juan';
+$password = 'juan123'; // GANTI ini sebelum dijalankan di server produksi
+$namaLengkap = 'Juan';
 
 $hash = password_hash($password, PASSWORD_BCRYPT);
 $pdo = getDB();

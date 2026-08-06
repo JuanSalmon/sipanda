@@ -1,69 +1,62 @@
-// SIPANDA PTM - Sidebar navigation
-(function () {
-    const sidebar = document.getElementById('sidebar');
-    const backdrop = document.getElementById('sidebarBackdrop');
-    const toggleBtn = document.getElementById('sidebarToggle');
-    const collapseBtn = document.getElementById('sidebarCollapse');
-    if (!sidebar) return;
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebar     = document.getElementById('sidebar');
+    const backdrop     = document.getElementById('sidebarBackdrop');
+    const toggleBtn     = document.getElementById('sidebarToggle');
+    const collapseBtn     = document.getElementById('sidebarCollapse');
 
-    const isDesktop = () => !window.matchMedia('(max-width: 900px)').matches;
+    // Force closed drawer state on load — mobile CSS shows sidebar only
+    // when .is-open is present, but a stale class left over from a prior
+    // session could leave it stuck open. Always start closed.
+    sidebar.classList.remove('is-open');
+    backdrop.classList.remove('is-open');
+    toggleBtn.setAttribute('aria-expanded', 'false');
 
-    function setCollapsed(state) {
-        sidebar.classList.toggle('is-collapsed', state);
-        collapseBtn?.setAttribute('aria-expanded', String(!state));
-        try { localStorage.setItem('sipanda-sidebar-collapsed', state ? '1' : '0'); } catch (e) {}
-    }
-
-    collapseBtn?.addEventListener('click', () => {
-        setCollapsed(!sidebar.classList.contains('is-collapsed'));
-    });
-
-    try {
-        if (isDesktop() && localStorage.getItem('sipanda-sidebar-collapsed') === '1') {
-            setCollapsed(true);
-        }
-    } catch (e) {}
-
-    function openSidebar() {
+    function openDrawer() {
         sidebar.classList.add('is-open');
-        backdrop?.classList.add('is-open');
-        toggleBtn?.setAttribute('aria-expanded', 'true');
+        backdrop.classList.add('is-open');
+        toggleBtn.setAttribute('aria-expanded', 'true');
     }
-
-    function closeSidebar() {
+    function closeDrawer() {
         sidebar.classList.remove('is-open');
-        backdrop?.classList.remove('is-open');
-        toggleBtn?.setAttribute('aria-expanded', 'false');
+        backdrop.classList.remove('is-open');
+        toggleBtn.setAttribute('aria-expanded', 'false');
     }
 
-    toggleBtn?.addEventListener('click', () => {
-        sidebar.classList.contains('is-open') ? closeSidebar() : openSidebar();
+    toggleBtn.addEventListener('click', () => {
+        sidebar.classList.contains('is-open') ? closeDrawer() : openDrawer();
     });
-    backdrop?.addEventListener('click', closeSidebar);
+    backdrop.addEventListener('click', closeDrawer);
 
-    // Collapsible submenu groups (Monitoring, Analisis, Data PTM)
-    sidebar.querySelectorAll('.sidebar-group-toggle').forEach((btn) => {
+    // Close drawer whenever a nav link is tapped (mobile UX)
+    sidebar.querySelectorAll('.sidebar-link, .sidebar-submenu a').forEach(a => {
+        a.addEventListener('click', () => {
+            if (window.innerWidth <= 900) closeDrawer();
+        });
+    });
+
+    // Desktop icon-rail collapse (persisted)
+    const COLLAPSE_KEY = 'sipanda_sidebar_collapsed';
+    if (localStorage.getItem(COLLAPSE_KEY) === '1' && window.innerWidth > 900) {
+        sidebar.classList.add('is-collapsed');
+        collapseBtn.setAttribute('aria-expanded', 'false');
+    }
+    collapseBtn.addEventListener('click', () => {
+        const collapsed = sidebar.classList.toggle('is-collapsed');
+        collapseBtn.setAttribute('aria-expanded', String(!collapsed));
+        localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
+    });
+
+    // Resize guard: leaving mobile width should drop any open-drawer state
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 900) closeDrawer();
+    });
+
+    // Collapsible groups (Monitoring / Analisis / Data PTM)
+    document.querySelectorAll('.sidebar-group-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
             const group = btn.closest('.sidebar-group');
-            const isOpen = group.classList.toggle('is-expanded');
-            btn.setAttribute('aria-expanded', String(isOpen));
+            const expanded = group.classList.toggle('is-expanded');
+            btn.setAttribute('aria-expanded', String(expanded));
         });
     });
-
-    // Clicking any in-page link: mark active, close drawer on mobile
-    sidebar.querySelectorAll('a[data-target]').forEach((link) => {
-        link.addEventListener('click', () => {
-            sidebar.querySelectorAll('a[data-target]').forEach((l) => l.classList.remove('is-active'));
-            link.classList.add('is-active');
-            if (window.matchMedia('(max-width: 900px)').matches) closeSidebar();
-        });
-    });
-
-    // Any other sidebar link (admin, disabled) just closes the drawer on mobile
-    sidebar.querySelectorAll('a:not([data-target])').forEach((link) => {
-        link.addEventListener('click', () => {
-            if (window.matchMedia('(max-width: 900px)').matches) closeSidebar();
-        });
-    });
-
-})();
+});

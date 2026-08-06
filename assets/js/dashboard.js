@@ -488,6 +488,7 @@ function buildDoughnutRows(rows) {
         doughnut[indikator] = { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0 };
     });
 
+    // Per-indikator breakdown: unchanged, one status per puskesmas::indikator combo.
     const groupedByPuskesmasAndIndic = rows.reduce((acc, row) => {
         const key = `${row.puskesmas}::${row.indikator}`;
         acc[key] = acc[key] || [];
@@ -496,14 +497,25 @@ function buildDoughnutRows(rows) {
     }, {});
 
     Object.keys(groupedByPuskesmasAndIndic).forEach((key) => {
-        const [puskesmas, indikator] = key.split('::');
+        const [, indikator] = key.split('::');
         const persen = formatCategoryValue(groupedByPuskesmasAndIndic[key]);
         const status = getStatusFromPercent(persen);
-
-        doughnut.Semua[status] += 1;
         if (doughnut[indikator]) {
             doughnut[indikator][status] += 1;
         }
+    });
+
+    // Semua: one status per Puskesmas, combining capaian/target across ALL indikator.
+    const groupedByPuskesmas = rows.reduce((acc, row) => {
+        acc[row.puskesmas] = acc[row.puskesmas] || [];
+        acc[row.puskesmas].push(row);
+        return acc;
+    }, {});
+
+    Object.keys(groupedByPuskesmas).forEach((puskesmas) => {
+        const persen = formatCategoryValue(groupedByPuskesmas[puskesmas]);
+        const status = getStatusFromPercent(persen);
+        doughnut.Semua[status] += 1;
     });
 
     return doughnut;
