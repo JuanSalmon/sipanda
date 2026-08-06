@@ -19,6 +19,7 @@
 }
 
 * { box-sizing: border-box; }
+html { overflow-x: hidden; }
 body {
     margin: 0;
     font-family: 'IBM Plex Sans', 'Segoe UI', Roboto, Arial, sans-serif;
@@ -110,6 +111,7 @@ body {
     gap: 12px;
     align-items: end;
 }
+.toolbar-controls > * { min-width: 0; }
 .filter-control {
     display: grid;
     gap: 6px;
@@ -121,6 +123,7 @@ body {
 }
 .filter-select {
     width: 100%;
+    min-width: 0;
     padding: 10px 12px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
@@ -148,6 +151,7 @@ body {
     gap: 16px;
     margin-bottom: 8px;
 }
+.scoreboards > * { min-width: 0; }
 .score-card {
     background: var(--card-bg);
     border-radius: var(--radius);
@@ -268,12 +272,15 @@ body {
     .scoreboards { grid-template-columns: 1fr; }
 }
 
+.charts-row > * { min-width: 0; }
+
 .chart-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 20px 22px;
     box-shadow: var(--shadow);
+    min-width: 0;
 }
 .chart-card h3 {
     font-family: 'Space Grotesk', sans-serif;
@@ -285,7 +292,8 @@ body {
 /* Fixed-height wrapper so a chart doesn't stretch tall on a full-width
    row (Chart.js's default aspect ratio would otherwise size height off
    the container's width). Requires maintainAspectRatio:false in JS. */
-.chart-canvas-box { position: relative; width: 100%; }
+.chart-canvas-box { position: relative; width: 100%; min-width: 0; }
+.chart-canvas-box canvas { max-width: 100%; }
 .chart-canvas-box--short { height: 260px; }
 .chart-canvas-box--tall { height: 340px; }
 
@@ -331,6 +339,7 @@ body {
 .doughnut-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 16px; }
 .doughnut-header h3 { margin: 0; }
 .doughnut-header select {
+    min-width: 0;
     padding: 6px 10px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
