@@ -55,6 +55,7 @@
                     <div class="sidebar-submenu"><div>
                         <a href="#lineChart" data-target="lineChart">Tren Capaian</a>
                         <a href="#comboChart" data-target="comboChart">Target vs Capaian</a>
+                        <a href="#indikatorRankChart" data-target="indikatorRankChart">Ranking Indikator</a>
                         <a href="#barChart" data-target="barChart">Ranking Puskesmas</a>
                         <a href="#doughnutChart" data-target="doughnutChart">Distribusi Status</a>
                     </div></div>
@@ -127,6 +128,14 @@
                     <!-- 4 kartu scoreboard diisi via JS -->
                 </section>
 
+                <p class="dashboard-section-title">Alert Indikator Bermasalah</p>
+                <section class="charts-row" style="grid-template-columns: 1fr;">
+                    <div class="chart-card" id="alertPanelCard">
+                        <h3>Perlu Perhatian (Belum Tercapai / Perlu Ditingkatkan)</h3>
+                        <div class="alert-panel" id="alertPanel"></div>
+                    </div>
+                </section>
+
                 <p class="dashboard-section-title">Progress Kabupaten</p>
                 <section class="charts-row" style="grid-template-columns: 1fr;">
                     <div class="chart-card progress-kabupaten" id="progressKabupaten">
@@ -176,6 +185,16 @@
                         </div>
                         <div class="chart-canvas-box chart-canvas-box--short">
                             <canvas id="doughnutChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <p class="dashboard-section-title">Ranking Indikator</p>
+                <section class="charts-row" style="grid-template-columns: 1fr;">
+                    <div class="chart-card">
+                        <h3>Ranking Indikator (Capaian se-Kabupaten)</h3>
+                        <div class="chart-canvas-box chart-canvas-box--short">
+                            <canvas id="indikatorRankChart"></canvas>
                         </div>
                     </div>
                 </section>

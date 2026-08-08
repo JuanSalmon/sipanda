@@ -189,12 +189,41 @@ function renderDashboard() {
 
     renderScoreboard(currentFilteredRows);
     renderProgressKabupaten(currentFilteredRows);
+    renderAlertPanel(currentFilteredRows);
     renderLineChart(currentFilteredRows);
     renderComboChart(currentFilteredRows);
+    renderIndikatorRankChart(currentFilteredRows);
     renderBarChart(currentFilteredRows);
     renderDoughnut(currentFilteredRows);
     renderHeatmap(currentFilteredRows);
     renderTabel(groupedForTable);
+}
+
+// Alert Panel: puskesmas x indikator dgn status bermasalah, terburuk dulu (roadmap v2.1).
+function renderAlertPanel(rows) {
+    const container = document.getElementById('alertPanel');
+    if (!container) return;
+
+    const alerts = buildTableRows(rows)
+        .filter(r => r.status !== 'Tercapai')
+        .sort((a, b) => a.rata_persen - b.rata_persen);
+
+    if (!alerts.length) {
+        container.innerHTML = `<div class="alert-empty">Semua indikator di semua puskesmas sudah Tercapai.</div>`;
+        return;
+    }
+
+    container.innerHTML = alerts.slice(0, 10).map(a => `
+        <div class="alert-row" style="border-left-color:${STATUS_COLOR[a.status]}">
+            <div class="alert-row-main">
+                <strong>${a.puskesmas}</strong>
+                <span>${a.indikator}</span>
+            </div>
+            <div class="alert-row-side">
+                <span class="alert-row-percent">${Number(a.rata_persen).toFixed(1)}%</span>
+                <span class="score-badge" style="background:${STATUS_COLOR[a.status]}">${a.status}</span>
+            </div>
+        </div>`).join('');
 }
 
 function renderProgressKabupaten(rows) {
@@ -477,6 +506,47 @@ function buildBarChartRows(rows, mode = 'semua') {
     if (mode === 'top5') return result.slice(0, 5);
     if (mode === 'bottom5') return result.slice(-5).sort((a, b) => b.skor_gabungan - a.skor_gabungan);
     return result;
+}
+
+let indikatorRankChartInstance = null;
+
+// Grafik Ranking Indikator: ranking 4 indikator se-kabupaten berdasar % capaian gabungan (roadmap v2.1).
+function renderIndikatorRankChart(rows) {
+    const canvas = document.getElementById('indikatorRankChart');
+    if (!canvas) return;
+
+    const grouped = rows.reduce((acc, row) => {
+        acc[row.indikator] = acc[row.indikator] || [];
+        acc[row.indikator].push(row);
+        return acc;
+    }, {});
+
+    const ranked = Object.keys(grouped).map((indikator) => {
+        const indicatorRows = grouped[indikator];
+        const totalCapaian = indicatorRows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
+        const totalTarget = computeTargetForRows(indicatorRows);
+        const persen = totalTarget > 0 ? Number(((totalCapaian / totalTarget) * 100).toFixed(1)) : 0;
+        return { indikator, persen };
+    }).sort((a, b) => b.persen - a.persen);
+
+    if (indikatorRankChartInstance) indikatorRankChartInstance.destroy();
+    indikatorRankChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: ranked.map(r => r.indikator),
+            datasets: [{
+                label: 'Capaian (%)',
+                data: ranked.map(r => r.persen),
+                backgroundColor: ranked.map(r => STATUS_COLOR[getStatusFromPercent(r.persen)]),
+            }],
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+        },
+    });
 }
 
 function renderDoughnut(rows) {
