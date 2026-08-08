@@ -425,8 +425,26 @@ function renderBarChart(rows) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
+            onHover: (event, elements) => {
+                event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+            },
+            onClick: (event, elements) => {
+                if (!elements.length) return;
+                const puskesmas = rankRows[elements[0].index]?.puskesmas;
+                if (puskesmas) goToPuskesmasInTable(puskesmas);
+            },
         },
     });
+}
+
+// Klik nama/bar puskesmas di ranking -> filter tabel monitoring & scroll ke sana (PRD §10).
+function goToPuskesmasInTable(puskesmas) {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = puskesmas;
+        searchInput.dispatchEvent(new Event('input'));
+    }
+    document.getElementById('monitorTable')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function setupRankToggle() {
