@@ -1,48 +1,31 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
+header('Content-Type: application/json');
 
-$error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-
-    $stmt = getDB()->prepare("SELECT * FROM admin_users WHERE username = ?");
-    $stmt->execute([$username]);
-    $admin = $stmt->fetch();
-
-    if ($admin && password_verify($password, $admin['password'])) {
-        $_SESSION['admin_id'] = $admin['id'];
-        $_SESSION['admin_nama'] = $admin['nama_lengkap'];
-        header('Location: dashboard.php');
-        exit;
-    } else {
-        $error = 'Username atau password salah.';
-    }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['ok' => false, 'error' => 'Method tidak diizinkan.']);
+    exit;
 }
-?>
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8">
-<title>Login Admin - SIPANDA PTM</title>
-<link rel="stylesheet" href="../assets/css/style.css">
-</head>
-<body class="login-page">
-    <div class="login-box">
-        <h1>SIPANDA <span>PTM</span></h1>
-        <p class="subtitle">Login Admin</p>
-        <?php if ($error): ?>
-            <div class="alert-error"><?= htmlspecialchars($error) ?></div>
-        <?php endif; ?>
-        <form method="post">
-            <label>Username</label>
-            <input type="text" name="username" required autofocus>
-            <label>Password</label>
-            <input type="password" name="password" required>
-            <button type="submit">Masuk</button>
-        </form>
-        <a class="back-link" href="../index.php">&larr; Kembali ke Dashboard Publik</a>
-    </div>
-</body>
-</html>
+
+$input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+$username = trim($input['username'] ?? '');
+$password = $input['password'] ?? '';
+
+if ($username === '' || $password === '') {
+    echo json_encode(['ok' => false, 'error' => 'Username dan password wajib diisi.']);
+    exit;
+}
+
+$stmt = getDB()->prepare("SELECT * FROM admin_users WHERE username = ?");
+$stmt->execute([$username]);
+$admin = $stmt->fetch();
+
+if ($admin && password_verify($password, $admin['password'])) {
+    $_SESSION['admin_id'] = $admin['id'];
+    $_SESSION['admin_nama'] = $admin['nama_lengkap'];
+    echo json_encode(['ok' => true, 'redirect' => 'admin/dashboard.php']);
+} else {
+    echo json_encode(['ok' => false, 'error' => 'Username atau password salah.']);
+}

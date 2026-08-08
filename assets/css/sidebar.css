@@ -1,0 +1,387 @@
+/* ===========================================================
+   SIPANDA PTM — Sidebar navigation
+   Reuses the color/type tokens already defined in :root by
+   style.css (--primary, --card-bg, --border, etc). Load this
+   file AFTER style.css.
+   =========================================================== */
+
+.app-shell {
+    min-height: 100vh;
+}
+
+.app-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    margin-left: 252px;
+    transition: margin-left .18s ease;
+}
+
+/* ---------- Sidebar ---------- */
+
+/* Fixed to the viewport — always visible top-to-bottom regardless of
+   page scroll position or page length. .app-main's margin-left makes
+   room for it in normal flow. */
+.sidebar {
+    width: 252px;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    height: 100vh;
+    overflow-y: auto;
+    transition: width .18s ease;
+    z-index: 30;
+}
+
+.sidebar-icon svg { width: 18px; height: 18px; display: block; }
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 14px 16px 18px;
+    border-bottom: 1px solid var(--border);
+}
+.sidebar-brand-text { flex: 1; min-width: 0; overflow: hidden; }
+
+.sidebar-collapse-btn {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+}
+.sidebar-collapse-btn:hover { background: var(--card-sunken); color: var(--text); }
+.sidebar-collapse-btn svg { width: 15px; height: 15px; transition: transform .18s ease; }
+.sidebar-brand-mark {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: 9px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.sidebar-brand-mark img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.sidebar-brand-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--primary-deep);
+    letter-spacing: -0.01em;
+}
+.sidebar-brand-title span { color: var(--text); }
+.sidebar-brand-sub {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.35;
+    margin-top: 2px;
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar-link,
+.sidebar-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+.sidebar-link:hover,
+.sidebar-group-toggle:hover { background: var(--card-sunken); }
+.sidebar-link.is-active { background: var(--primary-tint); color: var(--primary-deep); }
+
+.sidebar-icon { flex: none; font-size: 15px; line-height: 1; width: 18px; text-align: center; color: var(--muted); }
+.sidebar-link.is-active .sidebar-icon,
+.sidebar-link:hover .sidebar-icon,
+.sidebar-group-toggle:hover .sidebar-icon { color: var(--primary-deep); }
+.sidebar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sidebar-link--disabled {
+    color: var(--muted);
+    cursor: not-allowed;
+}
+.sidebar-link--disabled:hover { background: transparent; }
+.sidebar-soon {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--card-sunken);
+    border-radius: 999px;
+    padding: 2px 8px;
+    flex: none;
+}
+
+/* ---------- Collapsible groups ---------- */
+
+.sidebar-group { display: flex; flex-direction: column; }
+.sidebar-caret {
+    margin-left: auto;
+    transition: transform .15s ease;
+    color: var(--muted);
+    font-size: 13px;
+}
+.sidebar-group.is-expanded .sidebar-caret { transform: rotate(90deg); }
+
+.sidebar-submenu {
+    display: grid;
+    grid-template-rows: 0fr;
+    overflow: hidden;
+    transition: grid-template-rows .18s ease;
+}
+.sidebar-submenu > div { overflow: hidden; }
+.sidebar-group.is-expanded .sidebar-submenu { grid-template-rows: 1fr; }
+
+.sidebar-submenu a {
+    display: block;
+    padding: 8px 12px 8px 40px;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+}
+.sidebar-submenu a:hover { background: var(--card-sunken); color: var(--text); }
+.sidebar-submenu a.is-active { color: var(--primary-deep); font-weight: 600; background: var(--primary-tint); }
+
+.sidebar-group-note {
+    margin: 2px 12px 8px 40px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.sidebar-footer {
+    border-top: 1px solid var(--border);
+    padding: 12px 10px;
+}
+.sidebar-footer-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: #fff;
+    background: var(--primary);
+    font-size: 13.5px;
+    font-weight: 500;
+}
+.sidebar-footer-link:hover { background: var(--primary-deep); }
+
+/* ---------- Collapsed (desktop icon rail) ---------- */
+
+.sidebar.is-collapsed { width: 72px; }
+.app-shell:has(.sidebar.is-collapsed) .app-main { margin-left: 72px; }
+.sidebar.is-collapsed .sidebar-brand { justify-content: center; padding: 20px 0 16px; }
+.sidebar.is-collapsed .sidebar-brand-text,
+.sidebar.is-collapsed .sidebar-label,
+.sidebar.is-collapsed .sidebar-caret,
+.sidebar.is-collapsed .sidebar-submenu,
+.sidebar.is-collapsed .sidebar-group-note,
+.sidebar.is-collapsed .sidebar-soon { display: none; }
+.sidebar.is-collapsed .sidebar-link,
+.sidebar.is-collapsed .sidebar-group-toggle,
+.sidebar.is-collapsed .sidebar-footer-link { justify-content: center; padding: 10px; }
+.sidebar.is-collapsed .sidebar-collapse-btn svg { transform: rotate(180deg); }
+
+.sidebar-link[hidden], .sidebar-group[hidden], .sidebar-submenu a[hidden] { display: none; }
+
+/* ---------- Generic search-icon input (dashboard search box) ---------- */
+
+.search-field { position: relative; }
+.search-field-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    color: var(--muted);
+    pointer-events: none;
+}
+.search-field input { padding-left: 36px !important; }
+
+/* ---------- Mobile hamburger + off-canvas ---------- */
+
+.sidebar-toggle svg { width: 18px; height: 18px; }
+.sidebar-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    font-size: 18px;
+    cursor: pointer;
+    flex: none;
+}
+
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(19, 36, 31, 0.4);
+    z-index: 35;
+}
+.sidebar-backdrop.is-open { display: block; }
+
+@media (max-width: 900px) {
+    .app-main { margin-left: 0; }
+    .app-shell:has(.sidebar.is-collapsed) .app-main { margin-left: 0; }
+
+    .sidebar-toggle { display: flex; }
+    .sidebar-collapse-btn { display: none; }
+    .sidebar.is-collapsed { width: 252px; }
+    .sidebar.is-collapsed .sidebar-brand-text,
+    .sidebar.is-collapsed .sidebar-label,
+    .sidebar.is-collapsed .sidebar-caret,
+    .sidebar.is-collapsed .sidebar-group-note,
+    .sidebar.is-collapsed .sidebar-soon { display: revert; }
+
+    .sidebar {
+        z-index: 40;
+        transform: translateX(-100%);
+        transition: transform .2s ease;
+        box-shadow: var(--shadow);
+    }
+    .sidebar.is-open { transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar, .sidebar-submenu, .sidebar-caret, .app-main { transition: none !important; }
+}
+/* ---------- Floating login card ---------- */
+
+body.login-modal-open { overflow: hidden; }
+
+.login-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(15, 30, 25, 0.45);
+    backdrop-filter: blur(2px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.login-modal-backdrop.is-open { display: flex; }
+
+.login-modal-card {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 50px rgba(10, 30, 25, 0.25);
+    padding: 32px 28px 28px;
+    text-align: center;
+    animation: login-modal-in .18s ease;
+}
+@keyframes login-modal-in {
+    from { opacity: 0; transform: translateY(8px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.login-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+}
+.login-modal-close:hover { background: var(--card-sunken); color: var(--text); }
+.login-modal-close svg { width: 16px; height: 16px; }
+
+.login-modal-logo { width: 52px; height: 52px; object-fit: contain; margin: 0 auto 12px; display: block; }
+
+.login-modal-card h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 19px;
+    color: var(--primary-deep);
+    margin: 0 0 4px;
+}
+.login-modal-sub { font-size: 12.5px; color: var(--muted); margin: 0 0 18px; }
+
+.login-modal-error {
+    background: #FDEDEC;
+    color: #C0392B;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 12.5px;
+    margin-bottom: 14px;
+    text-align: left;
+}
+
+#loginModalForm { text-align: left; display: flex; flex-direction: column; gap: 4px; }
+#loginModalForm label { font-size: 12px; color: var(--muted); margin-top: 10px; }
+#loginModalForm input {
+    padding: 9px 11px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--card-sunken);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13.5px;
+}
+#loginModalForm input:focus { background: var(--card-bg); outline: 2px solid var(--primary); outline-offset: 1px; }
+#loginModalForm button {
+    margin-top: 18px;
+    padding: 10px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    font-size: 13.5px;
+    cursor: pointer;
+}
+#loginModalForm button:hover { background: var(--primary-deep); }
+#loginModalForm button:disabled { opacity: .7; cursor: default; }

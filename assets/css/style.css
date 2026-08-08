@@ -19,12 +19,14 @@
 }
 
 * { box-sizing: border-box; }
+html { overflow-x: hidden; }
 body {
     margin: 0;
     font-family: 'IBM Plex Sans', 'Segoe UI', Roboto, Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
 }
 ::selection { background: var(--primary); color: #fff; }
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -44,6 +46,7 @@ body {
     align-items: center;
     gap: 16px;
     flex-wrap: wrap;
+    row-gap: 8px;
 }
 .brand {
     font-family: 'Space Grotesk', sans-serif;
@@ -83,7 +86,7 @@ body {
 .admin-link:hover { background: var(--primary-deep); }
 
 /* Dashboard layout */
-.dashboard { padding: 28px 24px 60px; max-width: 1300px; margin: 0 auto; }
+.dashboard { padding: 28px 24px 60px; max-width: 1300px; margin: 0 auto; min-width: 0; }
 
 .toolbar-card {
     background: var(--card-bg);
@@ -108,6 +111,7 @@ body {
     gap: 12px;
     align-items: end;
 }
+.toolbar-controls > * { min-width: 0; }
 .filter-control {
     display: grid;
     gap: 6px;
@@ -119,6 +123,7 @@ body {
 }
 .filter-select {
     width: 100%;
+    min-width: 0;
     padding: 10px 12px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
@@ -146,6 +151,7 @@ body {
     gap: 16px;
     margin-bottom: 8px;
 }
+.scoreboards > * { min-width: 0; }
 .score-card {
     background: var(--card-bg);
     border-radius: var(--radius);
@@ -183,36 +189,8 @@ body {
     border-radius: 999px;
 }
 
-/* Gauge cards — semicircle progress per indikator */
-.gauge-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    margin-bottom: 8px;
-}
-@media (max-width: 560px) { .gauge-row { grid-template-columns: 1fr; } }
-.gauge-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 16px 18px;
-    text-align: center;
-}
-.gauge-card h4 {
-    margin: 0 0 6px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-}
-.gauge-canvas-box { position: relative; width: 120px; height: 120px; margin: 0 auto; }
-.gauge-sub { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
-
-/* Heatmap */
-.heatmap-wrap { max-height: 420px; }
-#heatmapTable { table-layout: fixed; }
+.heatmap-wrap { max-height: 420px; overflow-x: auto; }
+#heatmapTable { table-layout: fixed; min-width: 640px; }
 #heatmapTable th, #heatmapTable td {
     text-align: center;
     padding: 8px 4px;
@@ -256,12 +234,53 @@ body {
 }
 @media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
 
+/* ---------- Responsive: tablet ---------- */
+@media (max-width: 900px) {
+    .topbar { padding: 14px 16px; }
+    .brand { font-size: 19px; }
+    .brand-sub { font-size: 12px; min-width: 0; flex-basis: 100%; }
+    .dashboard { padding: 18px 14px 48px; }
+    .chart-card { padding: 16px; }
+    .score-card { padding: 16px; }
+    .score-value { font-size: 26px; }
+    .toolbar-card { padding: 14px; }
+}
+
+/* ---------- Responsive: phone ---------- */
+@media (max-width: 560px) {
+    .topbar { padding: 12px 12px; gap: 10px; }
+    .brand { font-size: 17px; }
+    .dashboard { padding: 14px 10px 40px; }
+    .dashboard-section-title { margin: 24px 2px 10px; font-size: 12px; }
+    .toolbar-controls { grid-template-columns: 1fr; }
+    .scoreboards { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .score-card { padding: 14px; }
+    .score-value { font-size: 22px; }
+    .score-sub { font-size: 11px; }
+    .chart-card { padding: 14px 12px; }
+    .chart-card h3 { font-size: 14px; margin-bottom: 12px; }
+    .chart-canvas-box--short { height: 220px; }
+    .chart-canvas-box--tall { height: 300px; }
+    .doughnut-header select, .rank-toggle { width: 100%; }
+    .rank-toggle button { flex: 1; }
+    table { font-size: 12.5px; }
+    th, td { padding: 9px 10px; }
+    .login-modal-card { padding: 26px 18px 22px; }
+}
+
+@media (max-width: 380px) {
+    .scoreboards { grid-template-columns: 1fr; }
+}
+
+.charts-row > * { min-width: 0; }
+
 .chart-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 20px 22px;
     box-shadow: var(--shadow);
+    min-width: 0;
 }
 .chart-card h3 {
     font-family: 'Space Grotesk', sans-serif;
@@ -273,12 +292,54 @@ body {
 /* Fixed-height wrapper so a chart doesn't stretch tall on a full-width
    row (Chart.js's default aspect ratio would otherwise size height off
    the container's width). Requires maintainAspectRatio:false in JS. */
-.chart-canvas-box { position: relative; width: 100%; }
+.chart-canvas-box { position: relative; width: 100%; min-width: 0; }
+.chart-canvas-box canvas { max-width: 100%; }
 .chart-canvas-box--short { height: 260px; }
+.chart-canvas-box--tall { height: 340px; }
 
-.doughnut-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+/* Progress Kabupaten bar */
+.progress-kabupaten { display: grid; gap: 8px; }
+.progress-kabupaten-track {
+    width: 100%;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--card-sunken);
+    overflow: hidden;
+}
+.progress-kabupaten-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--primary);
+    transition: width .4s ease;
+}
+.progress-kabupaten-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+}
+.progress-kabupaten-label strong { color: var(--primary-deep); font-size: 15px; }
+
+/* Ranking toggle */
+.rank-toggle { display: flex; flex-wrap: wrap; gap: 6px; }
+.rank-toggle button {
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card-sunken);
+    color: var(--muted);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.rank-toggle button.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.doughnut-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 16px; }
 .doughnut-header h3 { margin: 0; }
 .doughnut-header select {
+    min-width: 0;
     padding: 6px 10px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
@@ -309,6 +370,7 @@ body {
 .table-wrap {
     max-height: 460px;
     overflow-y: auto;
+    overflow-x: auto;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
 }
@@ -339,9 +401,10 @@ td:nth-child(3), td:nth-child(4) {
 .login-page {
     display: flex; align-items: center; justify-content: center;
     min-height: 100vh; background: linear-gradient(135deg, #2563eb, #1e293b);
+    padding: 16px;
 }
 .login-box {
-    background: #fff; padding: 32px; border-radius: 12px; width: 320px;
+    background: #fff; padding: 32px; border-radius: 12px; width: 320px; max-width: 100%;
     box-shadow: 0 10px 30px rgba(0,0,0,.2);
 }
 .login-box h1 { text-align: center; color: var(--primary); margin-bottom: 0; }
