@@ -466,14 +466,9 @@ function renderBarChart(rows) {
     });
 }
 
-// Klik nama/bar puskesmas di ranking -> filter tabel monitoring & scroll ke sana (PRD §10).
+// Klik nama/bar puskesmas di ranking -> masuk ke Dashboard Puskesmas (PRD §10).
 function goToPuskesmasInTable(puskesmas) {
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.value = puskesmas;
-        searchInput.dispatchEvent(new Event('input'));
-    }
-    document.getElementById('monitorTable')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.location.href = `puskesmas.php?nama=${encodeURIComponent(puskesmas)}`;
 }
 
 function setupRankToggle() {
@@ -620,7 +615,7 @@ function renderTabel(rows) {
 
     tbody.innerHTML = source.map((row) => `
         <tr>
-            <td>${row.puskesmas}</td>
+            <td><a href="puskesmas.php?nama=${encodeURIComponent(row.puskesmas)}">${row.puskesmas}</a></td>
             <td>${row.indikator}</td>
             <td>${row.total_capaian} / ${row.total_target}</td>
             <td>${Number(row.rata_persen).toFixed(1)}%</td>

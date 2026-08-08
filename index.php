@@ -33,6 +33,11 @@
                     <span class="sidebar-label">Dashboard</span>
                 </a>
 
+                <a class="sidebar-link" href="puskesmas.php" title="Dashboard Puskesmas">
+                    <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="18" height="11" rx="1"/><path d="M9 21V13h6v8"/><path d="M12 3l9 7H3l9-7z"/></svg></span>
+                    <span class="sidebar-label">Dashboard Puskesmas</span>
+                </a>
+
                 <div class="sidebar-group is-expanded">
                     <button class="sidebar-group-toggle" type="button" aria-expanded="true" title="Monitoring">
                         <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="14"/></svg></span>
