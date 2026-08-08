@@ -46,8 +46,6 @@
                     </button>
                     <div class="sidebar-submenu"><div>
                         <a href="#scoreboards" data-target="scoreboards">Ringkasan Capaian</a>
-                        <a href="#monitorTable" data-target="monitorTable">Monitoring per Puskesmas</a>
-                        <a href="#heatmapTable" data-target="heatmapTable">Monitoring Bulanan</a>
                     </div></div>
                 </div>
 
@@ -133,14 +131,6 @@
                     <!-- 4 kartu scoreboard diisi via JS -->
                 </section>
 
-                <p class="dashboard-section-title">Alert Indikator Bermasalah</p>
-                <section class="charts-row" style="grid-template-columns: 1fr;">
-                    <div class="chart-card" id="alertPanelCard">
-                        <h3>Perlu Perhatian (Belum Tercapai / Perlu Ditingkatkan)</h3>
-                        <div class="alert-panel" id="alertPanel"></div>
-                    </div>
-                </section>
-
                 <p class="dashboard-section-title">Progress Kabupaten</p>
                 <section class="charts-row" style="grid-template-columns: 1fr;">
                     <div class="chart-card progress-kabupaten" id="progressKabupaten">
@@ -221,49 +211,6 @@
                     </div>
                 </section>
 
-                <p class="dashboard-section-title">Heatmap Monitoring</p>
-                <section class="charts-row" style="grid-template-columns: 1fr;">
-                    <div class="chart-card table-card">
-                        <div class="doughnut-header">
-                            <h3>Puskesmas &times; Bulan</h3>
-                            <select id="heatmapFilter"></select>
-                        </div>
-                        <div class="table-wrap heatmap-wrap">
-                            <table id="heatmapTable">
-                                <thead><tr id="heatmapHeadRow"></tr></thead>
-                                <tbody id="heatmapBody"></tbody>
-                            </table>
-                        </div>
-                        <div class="heatmap-legend">
-                            <span><i style="background:#22c55e"></i> &ge;100% Tercapai</span>
-                            <span><i style="background:#f59e0b"></i> 70&ndash;99% Perlu Ditingkatkan</span>
-                            <span><i style="background:#ef4444"></i> &lt;70% Belum Tercapai</span>
-                            <span><i style="background:#e5e7eb"></i> Tidak ada data</span>
-                        </div>
-                    </div>
-                </section>
-
-                <p class="dashboard-section-title">Detail per Puskesmas</p>
-                <section class="table-section">
-                    <div class="chart-card table-card">
-                        <h3>Tabel Monitoring Puskesmas</h3>
-                        <div class="search-field">
-                            <svg class="search-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            <input type="text" id="searchInput" placeholder="Cari puskesmas atau indikator...">
-                        </div>
-                        <div class="table-wrap">
-                            <table id="monitorTable">
-                                <thead>
-                                    <tr>
-                                        <th>Puskesmas</th><th>Indikator</th><th>Capaian/Target</th>
-                                        <th>%</th><th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
             </main>
 
             <footer class="footer">SIPANDA PTM &copy; 2026</footer>

@@ -189,66 +189,6 @@ body {
     border-radius: 999px;
 }
 
-.alert-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 360px;
-    overflow-y: auto;
-}
-.alert-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 14px;
-    border-left: 4px solid transparent;
-    background: var(--surface-alt, #f8fafc);
-    border-radius: 8px;
-}
-.alert-row-main { display: flex; flex-direction: column; gap: 2px; }
-.alert-row-main strong { font-size: 13.5px; }
-.alert-row-main span { font-size: 12px; color: var(--muted); }
-.alert-row-side { display: flex; align-items: center; gap: 10px; }
-.alert-row-percent { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; }
-.alert-empty { padding: 16px; text-align: center; color: var(--muted); font-size: 13px; }
-
-.heatmap-wrap { max-height: 420px; overflow-x: auto; }
-#heatmapTable { table-layout: fixed; min-width: 640px; }
-#heatmapTable th, #heatmapTable td {
-    text-align: center;
-    padding: 8px 4px;
-    font-size: 12px;
-}
-#heatmapTable th:first-child, #heatmapTable td:first-child {
-    text-align: left;
-    padding-left: 14px;
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-weight: 500;
-    white-space: nowrap;
-}
-.heatmap-cell {
-    display: inline-block;
-    min-width: 34px;
-    padding: 4px 2px;
-    border-radius: 6px;
-    color: #fff;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    font-weight: 600;
-}
-.heatmap-cell--empty { background: #e5e7eb !important; color: var(--muted); }
-.heatmap-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    margin-top: 14px;
-    font-size: 12px;
-    color: var(--muted);
-}
-.heatmap-legend span { display: flex; align-items: center; gap: 6px; }
-.heatmap-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-
 .charts-row {
     display: grid;
     grid-template-columns: 1.4fr 1fr;

@@ -66,7 +66,6 @@ async function loadDashboard() {
     setupRankToggle();
     syncDoughnutFilter();
     syncComboFilter();
-    syncHeatmapFilter();
     renderDashboard();
 }
 
@@ -185,45 +184,14 @@ function getStatusFromPercent(value) {
 
 function renderDashboard() {
     currentFilteredRows = getFilteredRows();
-    const groupedForTable = buildTableRows(currentFilteredRows);
 
     renderScoreboard(currentFilteredRows);
     renderProgressKabupaten(currentFilteredRows);
-    renderAlertPanel(currentFilteredRows);
     renderLineChart(currentFilteredRows);
     renderComboChart(currentFilteredRows);
     renderIndikatorRankChart(currentFilteredRows);
     renderBarChart(currentFilteredRows);
     renderDoughnut(currentFilteredRows);
-    renderHeatmap(currentFilteredRows);
-    renderTabel(groupedForTable);
-}
-
-// Alert Panel: puskesmas x indikator dgn status bermasalah, terburuk dulu (roadmap v2.1).
-function renderAlertPanel(rows) {
-    const container = document.getElementById('alertPanel');
-    if (!container) return;
-
-    const alerts = buildTableRows(rows)
-        .filter(r => r.status !== 'Tercapai')
-        .sort((a, b) => a.rata_persen - b.rata_persen);
-
-    if (!alerts.length) {
-        container.innerHTML = `<div class="alert-empty">Semua indikator di semua puskesmas sudah Tercapai.</div>`;
-        return;
-    }
-
-    container.innerHTML = alerts.slice(0, 10).map(a => `
-        <div class="alert-row" style="border-left-color:${STATUS_COLOR[a.status]}">
-            <div class="alert-row-main">
-                <strong>${a.puskesmas}</strong>
-                <span>${a.indikator}</span>
-            </div>
-            <div class="alert-row-side">
-                <span class="alert-row-percent">${Number(a.rata_persen).toFixed(1)}%</span>
-                <span class="score-badge" style="background:${STATUS_COLOR[a.status]}">${a.status}</span>
-            </div>
-        </div>`).join('');
 }
 
 function renderProgressKabupaten(rows) {
@@ -341,42 +309,6 @@ function syncComboFilter() {
     const keys = ['Semua', ...getUniqueIndicators()];
     select.innerHTML = keys.map(key => `<option value="${key}">${key}</option>`).join('');
     select.addEventListener('change', () => renderComboChart(currentFilteredRows));
-}
-
-function renderHeatmap(rows) {
-    const headRow = document.getElementById('heatmapHeadRow');
-    const body = document.getElementById('heatmapBody');
-    if (!headRow || !body) return;
-
-    const select = document.getElementById('heatmapFilter');
-    const indikatorKey = select?.value || 'Semua';
-    const scoped = indikatorKey === 'Semua' ? rows : rows.filter(row => row.indikator === indikatorKey);
-
-    const months = [...new Set(rows.map(row => Number(row.bulan)))].filter(m => m >= 1 && m <= 12).sort((a, b) => a - b);
-    const puskesmasList = getUniquePuskesmas(rows);
-
-    headRow.innerHTML = `<th>Puskesmas</th>` + months.map(m => `<th>${MONTH_LABELS[m] || m}</th>`).join('');
-
-    body.innerHTML = puskesmasList.map(pkm => {
-        const cells = months.map(m => {
-            const subset = scoped.filter(row => row.puskesmas === pkm && Number(row.bulan) === m);
-            if (!subset.length) {
-                return `<td><span class="heatmap-cell heatmap-cell--empty">&ndash;</span></td>`;
-            }
-            const persen = formatCategoryValue(subset);
-            const status = getStatusFromPercent(persen);
-            return `<td><span class="heatmap-cell" style="background:${STATUS_COLOR[status]}">${Math.round(persen)}%</span></td>`;
-        }).join('');
-        return `<tr><td>${pkm}</td>${cells}</tr>`;
-    }).join('');
-}
-
-function syncHeatmapFilter() {
-    const select = document.getElementById('heatmapFilter');
-    if (!select) return;
-    const keys = ['Semua', ...getUniqueIndicators()];
-    select.innerHTML = keys.map(key => `<option value="${key}">${key}</option>`).join('');
-    select.addEventListener('change', () => renderHeatmap(currentFilteredRows));
 }
 
 function renderLineChart(rows) {
@@ -604,52 +536,6 @@ function buildDoughnutRows(rows) {
     return doughnut;
 }
 
-function renderTabel(rows) {
-    const tbody = document.querySelector('#monitorTable tbody');
-    if (!tbody) return;
-
-    const query = document.getElementById('searchInput')?.value?.toLowerCase() || '';
-    const source = query
-        ? rows.filter(row => row.puskesmas.toLowerCase().includes(query) || row.indikator.toLowerCase().includes(query))
-        : rows;
-
-    tbody.innerHTML = source.map((row) => `
-        <tr>
-            <td><a href="puskesmas.php?nama=${encodeURIComponent(row.puskesmas)}">${row.puskesmas}</a></td>
-            <td>${row.indikator}</td>
-            <td>${row.total_capaian} / ${row.total_target}</td>
-            <td>${Number(row.rata_persen).toFixed(1)}%</td>
-            <td><span class="badge" style="background:${STATUS_COLOR[row.status]}">${row.status}</span></td>
-        </tr>`).join('');
-}
-
-function buildTableRows(rows) {
-    const aggByPkmIndic = rows.reduce((acc, row) => {
-        const key = `${row.puskesmas}::${row.indikator}`;
-        acc[key] = acc[key] || [];
-        acc[key].push(row);
-        return acc;
-    }, {});
-
-    const result = Object.keys(aggByPkmIndic).map((key) => {
-        const [puskesmas, indikator] = key.split('::');
-        const subset = aggByPkmIndic[key];
-        const rataPersen = formatCategoryValue(subset);
-        const status = getStatusFromPercent(rataPersen);
-
-        return {
-            puskesmas,
-            indikator,
-            rata_persen: rataPersen,
-            total_capaian: subset.reduce((sum, row) => sum + Number(row.capaian || 0), 0),
-            total_target: subset.reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0),
-            status,
-        };
-    });
-
-    return result.sort((a, b) => a.puskesmas.localeCompare(b.puskesmas) || a.indikator.localeCompare(b.indikator));
-}
-
 function setupDoughnutFilter(keys) {
     const select = document.getElementById('doughnutFilter');
     if (!select) return;
@@ -665,9 +551,5 @@ function syncDoughnutFilter() {
     const keys = ['Semua', ...getUniqueIndicators()];
     setupDoughnutFilter(keys);
 }
-
-document.getElementById('searchInput')?.addEventListener('input', () => {
-    renderTabel(buildTableRows(currentFilteredRows));
-});
 
 loadDashboard();
