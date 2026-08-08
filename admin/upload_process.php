@@ -7,15 +7,39 @@ requireLogin();
 
 header('Content-Type: application/json');
 
-if (!isset($_FILES['file_excel']) || $_FILES['file_excel']['error'] !== UPLOAD_ERR_OK) {
-    echo json_encode(['success' => false, 'message' => 'File tidak ditemukan atau gagal diupload.']);
+// Batas maksimum file upload: 5 MB.
+// Dilipatgandakan oleh .user.ini / .htaccess agar PHP tolak request sebelum
+// masuk script (lebih cepat, tidak membebani memory).
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
+
+if (!isset($_FILES['file_excel'])) {
+    echo json_encode(['success' => false, 'message' => 'File tidak ditemukan.']);
+    exit;
+}
+
+$uploadErr = $_FILES['file_excel']['error'];
+if ($uploadErr === UPLOAD_ERR_INI_SIZE || $uploadErr === UPLOAD_ERR_FORM_SIZE) {
+    echo json_encode(['success' => false, 'message' => 'File terlalu besar. Maksimum 5 MB.']);
+    exit;
+}
+if ($uploadErr !== UPLOAD_ERR_OK) {
+    echo json_encode(['success' => false, 'message' => 'Upload gagal (kode error: ' . $uploadErr . ').']);
     exit;
 }
 
 $tmpPath = $_FILES['file_excel']['tmp_name'];
 $namaFileAsli = $_FILES['file_excel']['name'];
+$size = (int) $_FILES['file_excel']['size'];
 $ext = strtolower(pathinfo($namaFileAsli, PATHINFO_EXTENSION));
 
+if ($size <= 0) {
+    echo json_encode(['success' => false, 'message' => 'File kosong atau gagal dibaca.']);
+    exit;
+}
+if ($size > MAX_UPLOAD_BYTES) {
+    echo json_encode(['success' => false, 'message' => 'File terlalu besar. Maksimum 5 MB, file Anda ' . round($size / 1024 / 1024, 2) . ' MB.']);
+    exit;
+}
 if ($ext !== 'xlsx') {
     echo json_encode(['success' => false, 'message' => 'Hanya file .xlsx yang diperbolehkan.']);
     exit;

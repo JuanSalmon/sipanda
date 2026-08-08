@@ -1,0 +1,9 @@
+# SIPANDA PTM - cache hardening
+# Folder ini berisi JSON hasil parsing Excel (cache file).
+# Tolak akses publik langsung ke file di dalamnya; biarkan PHP yang baca via filesystem.
+Require all denied
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule .* - [F,L]
+</IfModule>

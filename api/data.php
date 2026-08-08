@@ -4,17 +4,43 @@ require_once __DIR__ . '/../includes/excel_reader.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 header('Content-Type: application/json');
 
+// === Cache layer ===
+// Tujuan: pindah dashboard kabupaten <-> puskesmas terasa instant.
+// Invalidasi: otomatis. Cache valid hanya bila file Excel belum dimodifikasi
+// sejak cache ditulis. Upload Excel baru akan update mtime, cache otomatis invalid.
+// Folder cache sengaja berada di LUAR webroot uploads/ supaya tidak ikut ke-serve
+// Apache. Letakkan di tmp path yang tidak publik.
+$cacheDir = __DIR__ . '/../cache';
+$cachePath = $cacheDir . '/data_' . md5(EXCEL_DATA_PATH) . '.json';
+
+if (!is_dir($cacheDir)) {
+    @mkdir($cacheDir, 0755, true);
+}
+
+$sourceMtime = is_file(EXCEL_DATA_PATH) ? filemtime(EXCEL_DATA_PATH) : 0;
+$cacheMtime  = is_file($cachePath) ? filemtime($cachePath) : 0;
+
+if ($sourceMtime > 0 && $cacheMtime >= $sourceMtime) {
+    // Cache HIT - kirim JSON yang sudah jadi tanpa parse Excel.
+    header('X-Cache: HIT');
+    readfile($cachePath);
+    exit;
+}
+
+// === Cache MISS: parse Excel & hitung agregasi ===
 $hasil = bacaDataSipanda(EXCEL_DATA_PATH);
 $rows = $hasil['rows'];
 
 if (empty($rows)) {
-    echo json_encode([
+    $payload = json_encode([
         'scoreboard' => [], 'line_chart' => [], 'bar_chart' => [],
         'doughnut' => ['Semua' => ['Tercapai'=>0,'Perlu Ditingkatkan'=>0,'Belum Tercapai'=>0]],
         'tabel' => [],
         'raw_rows' => [],
         'pesan' => $hasil['errors'][0] ?? 'Belum ada data. Admin perlu upload file Excel terlebih dahulu.',
     ]);
+    header('X-Cache: MISS');
+    echo $payload;
     exit;
 }
 
@@ -111,7 +137,7 @@ foreach ($puskesmasList as $pkm) {
     }
 }
 
-echo json_encode([
+$payload = json_encode([
     'scoreboard' => $scoreboard,
     'line_chart' => $lineChart,
     'bar_chart' => $barChart,
@@ -119,3 +145,16 @@ echo json_encode([
     'tabel' => $tabel,
     'raw_rows' => $rows,
 ]);
+
+// Simpan ke cache. atomic write: tulis ke .tmp lalu rename, supaya request
+// paralel tidak baca file setengah jadi.
+if ($sourceMtime > 0) {
+    $tmp = $cachePath . '.tmp.' . getmypid();
+    if (@file_put_contents($tmp, $payload) !== false) {
+        @rename($tmp, $cachePath);
+        @touch($cachePath, $sourceMtime); // sync mtime dengan source, biar compare berikutnya valid
+    }
+}
+
+header('X-Cache: MISS');
+echo $payload;

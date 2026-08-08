@@ -1,0 +1,44 @@
+# SIPANDA PTM - uploads hardening
+# Tujuan: blokir eksekusi PHP/CGI di folder ini sebagai defense-in-depth.
+# Berlaku hanya jika Apache pakai AllowOverride yang mengizinkan .htaccess.
+
+# 1) Matikan engine PHP sama sekali di folder ini.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php5.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# 2) Hapus asosiasi handler & MIME type untuk file PHP.
+RemoveHandler .php .phtml .phar .php3 .php4 .php5 .php7 .php8 .pht .phps
+RemoveType    .php .phtml .phar .php3 .php4 .php5 .php7 .php8 .pht .phps
+
+# 3) Tolak akses ke file PHP/script apapun, double-safety net.
+<FilesMatch "(?i)\.(php|phtml|phar|php3|php4|php5|php7|php8|pht|phps|cgi|pl|py|jsp|asp|aspx|sh|bash|exe)$">
+    Require all denied
+</FilesMatch>
+
+# 4) Tolak file dotfile (.htaccess, .env, .git, dll.) supaya tidak bocor
+#    kalau suatu saat ada konfigurasi lain yang salah.
+<FilesMatch "(^\.|[\\/]\.)">
+    Require all denied
+</FilesMatch>
+
+# 5) Tolak akses langsung ke subfolder sensitif (history/, dsb.) supaya
+#    tidak bisa di-enumerate via path traversal. File .xlsx tetap bisa
+#    diakses via URL biasa karena Require all denied di atas hanya
+#    memblokir file script, bukan .xlsx.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # (Tidak ada rewrite rules tambahan — sengaja dikosongkan.)
+</IfModule>
+
+# 6) Matikan index listing kalau ada.
+Options -Indexes

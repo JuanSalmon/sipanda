@@ -86,11 +86,7 @@ body {
 .admin-link:hover { background: var(--primary-deep); }
 
 /* Dashboard layout */
-.dashboard { padding: 28px 32px 60px; max-width: 1600px; margin: 0 auto; min-width: 0; }
-
-@media (min-width: 1900px) {
-    .dashboard { max-width: 1800px; padding-left: 40px; padding-right: 40px; }
-}
+.dashboard { padding: 28px 32px 60px; margin: 0; min-width: 0; }
 
 .toolbar-card {
     background: var(--card-bg);

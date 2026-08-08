@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
-if (session_status() === PHP_SESSION_NONE) session_start();
+require_once __DIR__ . '/../includes/auth.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -23,6 +23,7 @@ $stmt->execute([$username]);
 $admin = $stmt->fetch();
 
 if ($admin && password_verify($password, $admin['password'])) {
+    session_regenerate_id(true);
     $_SESSION['admin_id'] = $admin['id'];
     $_SESSION['admin_nama'] = $admin['nama_lengkap'];
     echo json_encode(['ok' => true, 'redirect' => 'admin/dashboard.php']);
