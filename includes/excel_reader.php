@@ -13,6 +13,30 @@ const BULAN_MAP = [
     'OKT'=>10,'OKTOBER'=>10,'NOV'=>11,'NOVEMBER'=>11,'DES'=>12,'DESEMBER'=>12,
 ];
 
+// Dipakai khusus buat parsing sheet MASTER_SIPANDA_<tahun> mentah (parser ke-2, lihat
+// detectSheetKind kind 'master_gabungan' & buildTargetMapFromMasterSheet), biar nama
+// Puskesmas/Indikator dari file mentah konsisten sama MASTER_PUSKESMAS / MASTER_INDIKATOR
+// yang sudah dipakai sheet TARGET/REALISASI live. Tidak mengubah parser lama sama sekali.
+const PUSKESMAS_FIX_MASTER = [
+    "BA'A" => 'BAA',
+];
+const INDIKATOR_FIX_MASTER = [
+    'USIA PRODUKTIF'         => 'Usia Produktif',
+    'HIPERTENSI'              => 'Hipertensi',
+    'DIABETES MELLITUS'       => 'Diabetes Melitus',
+    'HPV DNA CO TESTING IVA'  => 'HPV DNA Co Testing IVA',
+];
+
+function fixPuskesmasNamaMaster(string $x): string {
+    $key = strtoupper(trim($x));
+    return PUSKESMAS_FIX_MASTER[$key] ?? $key;
+}
+
+function fixIndikatorNamaMaster(string $x): string {
+    $key = strtoupper(trim($x));
+    return INDIKATOR_FIX_MASTER[$key] ?? trim($x);
+}
+
 function normalizeHeaderName(string $value): string {
     return strtoupper(trim(preg_replace('/\s+/', ' ', (string)$value)));
 }
@@ -26,6 +50,28 @@ function detectSheetKind(array $headerSet, string $sheetName): ?string {
 
     if ($isDatabaseSheet) {
         return 'database';
+    }
+
+    // Parser ke-2: sheet MASTER_SIPANDA_<tahun> mentah — TARGET TAHUNAN & CAPAIAN
+    // per bulan ada di SATU sheet yang sama (beda dari sheet TARGET/REALISASI yang
+    // sudah dipisah). Dicek sebelum isTargetSheet supaya gak salah ke-klasifikasi
+    // 'target' lalu kehilangan datanya CAPAIAN.
+    // Dua varian periode ditemukan di file mentah: sheet bulanan (kolom BULAN/NO BULAN,
+    // 12 baris/tahun) dan sheet triwulan (kolom NO PERIODE 1-4 + JENIS DATA='Triwulan',
+    // CAPAIAN kumulatif per triwulan, 4 baris/tahun). Keduanya masuk 'master_gabungan',
+    // dibedakan lagi nanti pas parsing baris (lihat buildRealisasiFromMasterSheet).
+    $hasBulanKolom = isset($headerSet['BULAN']) || isset($headerSet['NO BULAN']) || isset($headerSet['NO. BULAN']);
+    $hasPeriodeKolom = isset($headerSet['NO PERIODE']);
+    $isMasterGabunganSheet = isset($headerSet['TAHUN'])
+        && isset($headerSet['PUSKESMAS'])
+        && isset($headerSet['INDIKATOR'])
+        && isset($headerSet['TARGET TAHUNAN'])
+        && isset($headerSet['CAPAIAN'])
+        && ($hasBulanKolom || $hasPeriodeKolom)
+        && !isset($headerSet['TARGET BULANAN']);
+
+    if ($isMasterGabunganSheet) {
+        return 'master_gabungan';
     }
 
     $isTargetSheet = isset($headerSet['TAHUN'])
@@ -71,6 +117,28 @@ function parseBulan(array $row, int|false $idxNoBulan, int|false $idxBulan): ?in
     if ($idxBulan !== false) {
         $rawBulan = strtoupper(trim((string)($row[$idxBulan] ?? '')));
         return BULAN_MAP[$rawBulan] ?? null;
+    }
+
+    return null;
+}
+
+// Kolom NO PERIODE (1-4) dari sheet Triwulan (mis. MASTER_SIPANDA_2025). CAPAIAN di
+// sheet ini KUMULATIF sampai akhir triwulan tsb, bukan nilai bulanan. Dipetakan ke
+// bulan akhir triwulan (Mar/Jun/Sep/Des) supaya bisa masuk model tahun|bulan yang
+// sama dipakai sheet bulanan -- nilainya tetap kumulatif triwulan, bukan disulap jadi
+// bulanan. Kalau dashboard nge-sum per bulan buat tren, baris ini bisa bikin lonjakan
+// di bulan 3/6/9/12 -- belum ditangani di sisi frontend, cuma di-flag di sini.
+const PERIODE_TRIWULAN_KE_BULAN = [1 => 3, 2 => 6, 3 => 9, 4 => 12];
+
+function parsePeriode(array $row, int|false $idxNoBulan, int|false $idxBulan, int|false $idxNoPeriode): ?int {
+    $bulan = parseBulan($row, $idxNoBulan, $idxBulan);
+    if ($bulan !== null) {
+        return $bulan;
+    }
+
+    if ($idxNoPeriode !== false) {
+        $periode = (int)($row[$idxNoPeriode] ?? 0);
+        return PERIODE_TRIWULAN_KE_BULAN[$periode] ?? null;
     }
 
     return null;
@@ -188,6 +256,182 @@ function buildTargetMapFromYearlySheet(array $data, int $headerIdx): array {
 }
 
 /**
+ * Parser ke-2: ambil TARGET dari sheet MASTER_SIPANDA_<tahun> mentah (kolom TAHUN,
+ * PUSKESMAS, INDIKATOR, TARGET TAHUNAN ada semua di satu baris, gak ada TARGET BULANAN
+ * eksplisit -> dibagi 12). Nama Puskesmas/Indikator dinormalisasi biar konsisten sama
+ * MASTER_PUSKESMAS/MASTER_INDIKATOR yang sudah ada.
+ *
+ * @return array key: "tahun|PUSKESMAS|INDIKATOR" => data target (format sama persis
+ *               kayak buildTargetMapFromYearlySheet, biar bisa dipakai bareng)
+ */
+function buildTargetMapFromMasterSheet(array $data, int $headerIdx): array {
+    $header = array_map(fn($h) => normalizeHeaderName((string)$h), $data[$headerIdx] ?? []);
+    $idxTahun = getHeaderIndex($header, ['TAHUN']);
+    $idxPuskesmas = getHeaderIndex($header, ['PUSKESMAS']);
+    $idxIndikator = getHeaderIndex($header, ['INDIKATOR']);
+    $idxTargetThn = getHeaderIndex($header, ['TARGET TAHUNAN']);
+
+    if ($idxPuskesmas === false || $idxIndikator === false) {
+        return [];
+    }
+
+    $map = [];
+    for ($i = $headerIdx + 1; $i < count($data); $i++) {
+        $row = $data[$i];
+        $puskesmasRaw = trim((string)($row[$idxPuskesmas] ?? ''));
+        $indikatorRaw = trim((string)($row[$idxIndikator] ?? ''));
+        if ($puskesmasRaw === '' || $indikatorRaw === '') {
+            continue;
+        }
+
+        $puskesmas = fixPuskesmasNamaMaster($puskesmasRaw);
+        $indikator = fixIndikatorNamaMaster($indikatorRaw);
+        $tahun = $idxTahun !== false ? (int)($row[$idxTahun] ?? 2026) : 2026;
+        $targetTahunan = $idxTargetThn !== false ? (float)($row[$idxTargetThn] ?? 0) : 0.0;
+
+        $key = implode('|', [$tahun, strtoupper($puskesmas), strtoupper($indikator)]);
+        if (isset($map[$key])) {
+            continue; // target tahunan sama tiap baris periode, cukup ambil sekali
+        }
+
+        $map[$key] = [
+            'tahun'          => $tahun,
+            'puskesmas'      => $puskesmas,
+            'indikator'      => $indikator,
+            'sasaran'        => 0,
+            'target_tahunan' => (int)$targetTahunan,
+            'target_bulanan' => $targetTahunan > 0 ? round($targetTahunan / 12, 4) : 0.0,
+        ];
+    }
+
+    return $map;
+}
+
+/**
+ * Parser ke-2 (lanjutan): ambil baris REALISASI dari sheet MASTER_SIPANDA_<tahun> mentah.
+ * Dukung dua varian periode di kolom yang sama:
+ *  - Bulanan (NO BULAN/BULAN): 12 baris/tahun, CAPAIAN = nilai bulan itu sendiri (incremental).
+ *  - Triwulan (NO PERIODE, mis. MASTER_SIPANDA_2025): 4 baris/tahun, CAPAIAN kumulatif
+ *    s/d akhir triwulan -- dipetakan ke bulan akhir triwulan (parsePeriode), nilainya
+ *    TETAP kumulatif, bukan dipecah jadi bulanan. Flag, belum ditangani di frontend.
+ * Baris dengan CAPAIAN kosong/null (periode yang belum kejadian) dilewatin, bukan
+ * dianggap 0 -- supaya gak salah baca "belum ada data" jadi "capaian nihil".
+ *
+ * @return array<int, array{tahun:int, bulan:int, puskesmas:string, indikator:string, capaian:float}>
+ */
+function buildRealisasiFromMasterSheet(array $data, int $headerIdx, array $header): array {
+    $idxTahun = getHeaderIndex($header, ['TAHUN']);
+    $idxNoBulan = getHeaderIndex($header, ['NO BULAN', 'NO. BULAN']);
+    $idxBulan = getHeaderIndex($header, ['BULAN']);
+    $idxNoPeriode = getHeaderIndex($header, ['NO PERIODE']);
+    $idxPuskesmas = getHeaderIndex($header, ['PUSKESMAS']);
+    $idxIndikator = getHeaderIndex($header, ['INDIKATOR']);
+    $idxCapaian = getHeaderIndex($header, ['CAPAIAN']);
+
+    if ($idxPuskesmas === false || $idxIndikator === false || $idxCapaian === false) {
+        return [];
+    }
+
+    $rows = [];
+    for ($i = $headerIdx + 1; $i < count($data); $i++) {
+        $row = $data[$i];
+        $puskesmasRaw = trim((string)($row[$idxPuskesmas] ?? ''));
+        $indikatorRaw = trim((string)($row[$idxIndikator] ?? ''));
+        if ($puskesmasRaw === '' || $indikatorRaw === '') {
+            continue;
+        }
+
+        $bulan = parsePeriode($row, $idxNoBulan, $idxBulan, $idxNoPeriode);
+        if ($bulan === null) {
+            continue;
+        }
+
+        $capaianRaw = $row[$idxCapaian] ?? null;
+        if ($capaianRaw === null || $capaianRaw === '') {
+            continue; // periode belum ada data
+        }
+
+        $rows[] = [
+            'tahun'     => $idxTahun !== false ? (int)($row[$idxTahun] ?? 2026) : 2026,
+            'bulan'     => $bulan,
+            'puskesmas' => fixPuskesmasNamaMaster($puskesmasRaw),
+            'indikator' => fixIndikatorNamaMaster($indikatorRaw),
+            'capaian'   => (float)$capaianRaw,
+        ];
+    }
+
+    // Sheet triwulan (JENIS DATA='Triwulan'): CAPAIAN kumulatif per triwulan, jadi
+    // Q4 = total tahun. Kalau dibiarin 4 baris (bulan 3,6,9,12), frontend akan jumlah
+    // semuanya = double/triple/quadruple count orang yang sama. Solusi: ambil row
+    // triwulan terbesar per puskesmas+indikator sebagai representasi total, tandai
+    // satuan='triwulan' supaya JS bisa hitung fraction scaling yang benar (bulan/12,
+    // bukan months.size/12 yg bakal jadi 1/12 karena cuma ada 1 row di bulan akhir).
+    $onlyTriwulan = $rows !== [] && $idxNoPeriode !== false;
+    if ($onlyTriwulan) {
+        $latest = [];
+        foreach ($rows as $r) {
+            $key = $r['tahun'].'|'.strtoupper($r['puskesmas']).'|'.strtoupper($r['indikator']);
+            if (!isset($latest[$key]) || $r['bulan'] > $latest[$key]['bulan']) {
+                $latest[$key] = $r;
+                $latest[$key]['satuan'] = 'triwulan';
+            }
+        }
+        return array_values($latest);
+    }
+
+    return $rows;
+}
+
+/**
+ * Isi placeholder buat indikator yang SAMA SEKALI gak ada datanya di suatu tahun
+ * (mis. HPV DNA Co Testing IVA gak ada di sheet MASTER_SIPANDA_2025, cuma 3 indikator).
+ * Tanpa ini, kombinasi puskesmas+indikator+bulan itu ilang total dari $rows -> di
+ * frontend keliatan bolong/undefined. Diisi capaian 0, status '-' (bukan status normal
+ * kayak Tercapai/Belum Tercapai) biar kebeda jelas dari capaian 0 yang beneran ada
+ * datanya. Frontend perlu handle status '-' ini secara eksplisit (badge/warna netral).
+ *
+ * @return array baris asli + baris placeholder yang ditambahkan
+ */
+function lengkapiIndikatorHilangPerTahun(array $rows): array {
+    $bulanPerTahun = [];
+    $puskesmasPerTahun = [];
+    $indikatorPerTahun = [];
+
+    foreach ($rows as $r) {
+        $bulanPerTahun[$r['tahun']][$r['bulan']] = true;
+        $puskesmasPerTahun[$r['tahun']][$r['puskesmas']] = true;
+        $indikatorPerTahun[$r['tahun']][$r['indikator']] = true;
+    }
+
+    foreach ($bulanPerTahun as $tahun => $bulanSet) {
+        foreach (INDIKATOR_VALID as $indikator) {
+            if (isset($indikatorPerTahun[$tahun][$indikator])) {
+                continue; // indikator ini ada datanya di tahun ini, gak perlu placeholder
+            }
+
+            foreach (array_keys($puskesmasPerTahun[$tahun] ?? []) as $puskesmas) {
+                foreach (array_keys($bulanSet) as $bulan) {
+                    $rows[] = [
+                        'tahun'          => $tahun,
+                        'bulan'          => $bulan,
+                        'puskesmas'      => $puskesmas,
+                        'indikator'      => $indikator,
+                        'sasaran'        => 0,
+                        'target_tahunan' => 0,
+                        'target_bulanan' => 0,
+                        'capaian'        => 0,
+                        'persentase'     => 0,
+                        'status'         => '-',
+                    ];
+                }
+            }
+        }
+    }
+
+    return $rows;
+}
+
+/**
  * Mencari index baris yang berfungsi sebagai header.
  */
 function findHeaderRowIndex(array $data): int {
@@ -211,7 +455,11 @@ function cariSheetDataSipanda(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet
     $candidates = [];
     foreach ($spreadsheet->getSheetNames() as $sheetName) {
         $sheet = $spreadsheet->getSheetByName($sheetName);
-        $data = $sheet->toArray(null, true, true, false);
+        // formatData=false: ambil nilai MENTAH cell, bukan versi terformat.
+        // Sebelumnya formatData=true bikin kolom angka ber-format ribuan (mis. "#,##0"
+        // -> "8,998") kebaca sebagai string, lalu (float)"8,998" kepotong jadi 8 di
+        // banyak tempat (target/capaian). Ini fix bug, bukan behavior baru yang disengaja.
+        $data = $sheet->toArray(null, true, false, false);
         if (count($data) < 2) {
             continue;
         }
@@ -227,7 +475,7 @@ function cariSheetDataSipanda(\PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet
     }
 
     usort($candidates, function (array $a, array $b): int {
-        $priority = ['database' => 0, 'target' => 1, 'realisasi' => 2];
+        $priority = ['database' => 0, 'master_gabungan' => 1, 'target' => 2, 'realisasi' => 3];
         $diff = ($priority[$a['kind']] ?? 99) <=> ($priority[$b['kind']] ?? 99);
         if ($diff !== 0) {
             return $diff;
@@ -292,6 +540,31 @@ function bacaDataSipanda(string $path): array {
         }
 
         $totalBarisDibaca += max(0, count($data) - ($headerIdx + 1));
+
+        if ($kind === 'master_gabungan') {
+            // Parser ke-2: TARGET + CAPAIAN ada di satu sheet mentah -> masuk ke jalur
+            // "yearlyTargetMap + realisasiRows" yang sama kayak mode TARGET-tahunan +
+            // REALISASI-terpisah (sudah ada di bawah), jadi gak perlu logic gabung baru.
+            $hasYearlyTarget = true;
+            $yearlyTargetMap = array_merge($yearlyTargetMap, buildTargetMapFromMasterSheet($data, $headerIdx));
+
+            foreach (buildRealisasiFromMasterSheet($data, $headerIdx, $header) as $r) {
+                $realisasiRows[] = [
+                    'tahun'          => $r['tahun'],
+                    'bulan'          => $r['bulan'],
+                    'puskesmas'      => $r['puskesmas'],
+                    'indikator'      => $r['indikator'],
+                    'sasaran'        => 0,
+                    'target_tahunan' => 0,
+                    'target_bulanan' => 0.0,
+                    'capaian'        => $r['capaian'],
+                    'persentase'     => 0,
+                    'status'         => hitungStatus(0),
+                    'satuan'         => $r['satuan'] ?? 'bulanan',
+                ];
+            }
+            continue;
+        }
 
         if ($kind === 'target') {
             // Cek apakah sheet target ini punya kolom BULAN
@@ -400,6 +673,7 @@ function bacaDataSipanda(string $path): array {
                 'capaian'        => $capaian,
                 'persentase'     => $persentase,
                 'status'         => hitungStatus($persentase),
+                'satuan'         => $realisasiRow['satuan'] ?? 'bulanan',
             ];
         }
     } else {
@@ -446,6 +720,8 @@ function bacaDataSipanda(string $path): array {
             ];
         }
     }
+
+    $rows = lengkapiIndikatorHilangPerTahun($rows);
 
     return [
         'rows' => $rows,

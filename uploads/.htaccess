@@ -2,7 +2,7 @@
 # Tujuan: blokir eksekusi PHP/CGI di folder ini sebagai defense-in-depth.
 # Berlaku hanya jika Apache pakai AllowOverride yang mengizinkan .htaccess.
 
-# 1) Matikan engine PHP sama sekali di folder ini.
+# 1 Matikan engine PHP sama sekali di folder ini.
 <IfModule mod_php.c>
     php_flag engine off
 </IfModule>

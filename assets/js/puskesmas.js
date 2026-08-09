@@ -3,6 +3,7 @@ const STATUS_COLOR = {
     'Tercapai': '#22c55e',
     'Perlu Ditingkatkan': '#f59e0b',
     'Belum Tercapai': '#ef4444',
+    '-': '#94a3b8',
 };
 const INDIKATOR_COLOR = {
     'Usia Produktif': '#3b82f6',
@@ -23,29 +24,89 @@ function getIndicatorColor(indikator, indicatorList) {
     return FALLBACK_INDICATOR_COLORS[index % FALLBACK_INDICATOR_COLORS.length] || '#2563eb';
 }
 
-function getStatusFromPercent(value) {
+function getStatusFromPercent(value, hasTarget = true) {
+    if (!hasTarget) return '-';
     if (value >= 100) return 'Tercapai';
     if (value >= 70) return 'Perlu Ditingkatkan';
     return 'Belum Tercapai';
 }
 
+// CAPAIAN 2025 (satuan 'triwulan') KUMULATIF per triwulan (Q4 sudah termasuk Q1-Q3;
+// data nyata NDAO Usia Produktif: Q1=123, Q2=183, Q3=183, Q4=523). Sum 4 baris =
+// double/triple/quadruple count. CAPAIAN 2026 (satuan 'bulanan') INCREMENTAL per bulan,
+// itu memang harus dijumlah. Ambil triwulan terakhir per puskesmas+indikator+tahun,
+// baris bulanan tetap disum semua.
+function sumCapaianForRows(rows) {
+    const cumulativeGroups = new Map();
+    let incrementalTotal = 0;
+
+    rows.forEach((row) => {
+        const satuan = row.satuan || 'bulanan';
+        if (satuan === 'triwulan') {
+            const key = `${row.tahun}|${row.puskesmas}|${row.indikator}`;
+            const bulan = Number(row.bulan) || 0;
+            const existing = cumulativeGroups.get(key);
+            if (!existing || bulan > existing.bulan) {
+                cumulativeGroups.set(key, { bulan, capaian: Number(row.capaian || 0) });
+            }
+        } else {
+            incrementalTotal += Number(row.capaian || 0);
+        }
+    });
+
+    let cumulativeTotal = 0;
+    cumulativeGroups.forEach((v) => { cumulativeTotal += v.capaian; });
+    return cumulativeTotal + incrementalTotal;
+}
+
 function formatCategoryValue(rows) {
-    const totalCapaian = rows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
-    const totalTarget = rows.reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0);
+    const totalCapaian = sumCapaianForRows(rows);
+    const totalTarget = computeTargetForRows(rows);
     if (totalTarget <= 0) return 0;
     return Number(((totalCapaian / totalTarget) * 100).toFixed(1));
 }
 
+// Target 0 sepanjang periode = indikator itu memang gak ada datanya (mis. HPV DNA Co
+// Testing IVA di 2025, diisi placeholder oleh excel_reader.php). Dibedain dari capaian
+// 0% yang beneran punya target, biar statusnya '-' (netral) bukan 'Belum Tercapai' (merah).
+// (kolom target_bulanan gak ada di sheet 2025 -- pakai computeTargetForRows biar konsisten
+// lintas satuan triwulan/bulanan.)
+function hasTargetData(rows) {
+    return computeTargetForRows(rows) > 0;
+}
+
+// Bug 4 fix: fraction deterministik dari periode DIPILIH user (PKM_FILTER_STATE),
+// bukan dari berapa bulan yang kebetulan punya baris data. Lihat catatan sama di
+// dashboard.js -- target_tahunan konstan per puskesmas+indikator+tahun, tervalidasi
+// cocok dengan rekap manual.
+function getPeriodFraction(periodeType, periodeValue) {
+    if (periodeValue === 'all' || !periodeValue) return 1;
+    if (periodeType === 'tahunan') return 1;
+    if (periodeType === 'bulanan') return 1 / 12;
+    if (periodeType === 'triwulan') return 3 / 12;
+    if (periodeType === 'semester') return 6 / 12;
+    return 1;
+}
+
 function computeTargetForRows(rows) {
-    const monthsPresent = new Set(rows.map((r) => r.bulan)).size || 12;
-    const fraction = Math.min(monthsPresent / 12, 1);
-    const seen = new Map();
+    const byYear = new Map();
     rows.forEach((row) => {
-        const key = `${row.puskesmas}|${row.indikator}`;
-        if (!seen.has(key)) seen.set(key, Number(row.target_tahunan || 0));
+        const year = Number(row.tahun);
+        if (!byYear.has(year)) byYear.set(year, new Map());
+        const targetSeen = byYear.get(year);
+        const targetKey = `${row.puskesmas}|${row.indikator}`;
+        if (!targetSeen.has(targetKey)) {
+            targetSeen.set(targetKey, Number(row.target_tahunan || 0));
+        }
     });
-    const annualSum = Array.from(seen.values()).reduce((sum, v) => sum + v, 0);
-    return Math.round(annualSum * fraction);
+
+    const fraction = getPeriodFraction(PKM_FILTER_STATE.periodeType, PKM_FILTER_STATE.periodeValue);
+    let total = 0;
+    byYear.forEach((targetSeen) => {
+        const annualSum = Array.from(targetSeen.values()).reduce((sum, v) => sum + v, 0);
+        total += Math.round(annualSum * fraction);
+    });
+    return total;
 }
 
 function matchesPeriod(row, type, value) {
@@ -160,7 +221,7 @@ function renderPuskesmasDashboard() {
 function renderInfo(puskesmas, rows) {
     const card = document.getElementById('pkmInfoCard');
     if (!card) return;
-    const totalCapaian = rows.reduce((sum, r) => sum + Number(r.capaian || 0), 0);
+    const totalCapaian = sumCapaianForRows(rows);
     const totalTarget = computeTargetForRows(rows);
     const bulanCount = new Set(rows.map(r => r.bulan)).size;
 
@@ -178,8 +239,8 @@ function renderKpiCards(puskesmas, rows, indicatorList) {
     const cards = indicatorList.map((indikator) => {
         const subset = rows.filter(r => r.indikator === indikator);
         const persen = formatCategoryValue(subset);
-        const status = getStatusFromPercent(persen);
-        const totalCapaian = subset.reduce((sum, r) => sum + Number(r.capaian || 0), 0);
+        const status = getStatusFromPercent(persen, hasTargetData(subset));
+        const totalCapaian = sumCapaianForRows(subset);
         const totalTarget = computeTargetForRows(subset);
         return { indikator, persen, status, totalCapaian, totalTarget };
     });
@@ -200,7 +261,7 @@ function renderProgressBars(puskesmas, rows, indicatorList) {
     card.innerHTML = indicatorList.map((indikator) => {
         const subset = rows.filter(r => r.indikator === indikator);
         const persen = formatCategoryValue(subset);
-        const status = getStatusFromPercent(persen);
+        const status = getStatusFromPercent(persen, hasTargetData(subset));
         const clamped = Math.max(0, Math.min(persen, 100));
         return `
             <div class="progress-kabupaten-label">
@@ -252,8 +313,8 @@ function renderStatusTable(puskesmas, rows, indicatorList) {
     tbody.innerHTML = indicatorList.map((indikator) => {
         const subset = rows.filter(r => r.indikator === indikator);
         const persen = formatCategoryValue(subset);
-        const status = getStatusFromPercent(persen);
-        const totalCapaian = subset.reduce((sum, r) => sum + Number(r.capaian || 0), 0);
+        const status = getStatusFromPercent(persen, hasTargetData(subset));
+        const totalCapaian = sumCapaianForRows(subset);
         const totalTarget = computeTargetForRows(subset);
         return `
             <tr>

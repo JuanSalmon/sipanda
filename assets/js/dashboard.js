@@ -3,6 +3,7 @@ const STATUS_COLOR = {
     'Tercapai': '#22c55e',
     'Perlu Ditingkatkan': '#f59e0b',
     'Belum Tercapai': '#ef4444',
+    '-': '#94a3b8',
 };
 const INDIKATOR_COLOR = {
     'Usia Produktif': '#3b82f6',
@@ -14,19 +15,75 @@ const FALLBACK_INDICATOR_COLORS = ['#14b8a6', '#f97316', '#8b5cf6', '#0ea5e9', '
 const MONTH_LABELS = { 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun', 7: 'Jul', 8: 'Agu', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Des' };
 
 // Target dipakai untuk scoreboard & Progress Kabupaten dihitung LANGSUNG dari data
-// Excel (target_tahunan per Puskesmas), bukan angka tetap. Diskalakan sesuai jumlah
-// bulan yang benar-benar ada di data (mis. 6 bulan -> 6/12 dari target tahunan), jadi
-// otomatis tetap benar walau tahun datanya beda atau bulan datanya nanti ditambah.
+// Excel (target_tahunan per Puskesmas), bukan angka tetap. target_tahunan konstan di
+// tiap baris per puskesmas+indikator+tahun (tervalidasi terhadap rekap manual: NDAO
+// Usia Produktif 2026 = 2274, total kabupaten 2025/2026 cocok persis).
+//
+// Bug 4 fix: fraction TIDAK lagi dihitung dari kelengkapan data (berapa bulan yang
+// punya baris di rows) -- itu bikin target menyusut kalau bulan belakangan belum
+// diisi walau user filter "Tahun 2026" utuh (6 dari 12 bulan terisi -> fraction 0.5
+// -> target keliatan setengah, padahal user minta target 1 tahun penuh). Fraction
+// sekarang deterministik dari filter periode yang DIPILIH user (getPeriodFraction),
+// lepas dari baris mana yang kebetulan ada datanya.
+function getPeriodFraction(periodeType, periodeValue) {
+    if (periodeValue === 'all' || !periodeValue) return 1;      // Semua Periode -> target 1 tahun penuh
+    if (periodeType === 'tahunan') return 1;                    // tahun spesifik dipilih -> target 1 tahun penuh
+    if (periodeType === 'bulanan') return 1 / 12;                // 1 bulan dipilih -> 1/12 target tahunan
+    if (periodeType === 'triwulan') return 3 / 12;               // 1 triwulan dipilih -> 3/12 target tahunan
+    if (periodeType === 'semester') return 6 / 12;               // 1 semester dipilih -> 6/12 target tahunan
+    return 1;
+}
+
 function computeTargetForRows(rows) {
-    const monthsPresent = new Set(rows.map((r) => r.bulan)).size || 12;
-    const fraction = Math.min(monthsPresent / 12, 1);
-    const seen = new Map();
+    const byYear = new Map();
     rows.forEach((row) => {
-        const key = `${row.puskesmas}|${row.indikator}`;
-        if (!seen.has(key)) seen.set(key, Number(row.target_tahunan || 0));
+        const year = Number(row.tahun);
+        if (!byYear.has(year)) byYear.set(year, new Map());
+        const targetSeen = byYear.get(year);
+        const targetKey = `${row.puskesmas}|${row.indikator}`;
+        if (!targetSeen.has(targetKey)) {
+            targetSeen.set(targetKey, Number(row.target_tahunan || 0));
+        }
     });
-    const annualSum = Array.from(seen.values()).reduce((sum, v) => sum + v, 0);
-    return Math.round(annualSum * fraction);
+
+    const fraction = getPeriodFraction(FILTER_STATE.periodeType, FILTER_STATE.periodeValue);
+    let total = 0;
+    byYear.forEach((targetSeen) => {
+        const annualSum = Array.from(targetSeen.values()).reduce((sum, v) => sum + v, 0);
+        total += Math.round(annualSum * fraction);
+    });
+    return total;
+}
+
+// CAPAIAN 2025 (satuan 'triwulan', sheet MASTER_SIPANDA_2025) itu KUMULATIF per
+// triwulan -- Q4 sudah termasuk Q1-Q3 (contoh nyata dari data: NDAO Usia Produktif
+// Q1=123, Q2=183, Q3=183, Q4=523 -- itu total s/d akhir triwulan, bukan tambahan per
+// triwulan). Nge-sum keempat baris = double/triple/quadruple count orang yang sama.
+// CAPAIAN 2026 (satuan 'bulanan') sebaliknya INCREMENTAL per bulan (nilai bulan Jan
+// berbeda dan gak termasuk bulan sebelumnya) -- itu memang harus dijumlah.
+// Fix: untuk baris 'triwulan', ambil nilai triwulan TERAKHIR (bulan terbesar) per
+// puskesmas+indikator+tahun saja. Untuk baris 'bulanan', tetap dijumlah semua.
+function sumCapaianForRows(rows) {
+    const cumulativeGroups = new Map();
+    let incrementalTotal = 0;
+
+    rows.forEach((row) => {
+        const satuan = row.satuan || 'bulanan';
+        if (satuan === 'triwulan') {
+            const key = `${row.tahun}|${row.puskesmas}|${row.indikator}`;
+            const bulan = Number(row.bulan) || 0;
+            const existing = cumulativeGroups.get(key);
+            if (!existing || bulan > existing.bulan) {
+                cumulativeGroups.set(key, { bulan, capaian: Number(row.capaian || 0) });
+            }
+        } else {
+            incrementalTotal += Number(row.capaian || 0);
+        }
+    });
+
+    let cumulativeTotal = 0;
+    cumulativeGroups.forEach((v) => { cumulativeTotal += v.capaian; });
+    return cumulativeTotal + incrementalTotal;
 }
 
 let rankMode = 'semua';
@@ -170,13 +227,23 @@ function matchesPeriod(row, type, value) {
 }
 
 function formatCategoryValue(rows) {
-    const totalCapaian = rows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
-    const totalTarget = rows.reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0);
+    const totalCapaian = sumCapaianForRows(rows);
+    const totalTarget = computeTargetForRows(rows);
     if (totalTarget <= 0) return 0;
     return Number(((totalCapaian / totalTarget) * 100).toFixed(1));
 }
 
-function getStatusFromPercent(value) {
+// Target 0 sepanjang periode berarti indikator itu memang gak ada datanya di periode
+// tsb (mis. HPV DNA Co Testing IVA di tahun 2025 -- excel_reader.php ngisi placeholder
+// capaian 0/target 0 biar kombinasi puskesmas+indikator+bulan gak bolong). Beda sama
+// capaian 0% yang beneran dari target asli -- makanya statusnya dibedain jadi '-'
+// (netral), bukan ikut kehitung 'Belum Tercapai' (merah, misleading).
+function hasTargetData(rows) {
+    return computeTargetForRows(rows) > 0;
+}
+
+function getStatusFromPercent(value, hasTarget = true) {
+    if (!hasTarget) return '-';
     if (value >= 100) return 'Tercapai';
     if (value >= 70) return 'Perlu Ditingkatkan';
     return 'Belum Tercapai';
@@ -201,10 +268,10 @@ function renderProgressKabupaten(rows) {
     const statusEl = document.getElementById('progressKabupatenStatus');
     if (!fill || !percentEl || !numbersEl || !statusEl) return;
 
-    const totalCapaian = rows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
+    const totalCapaian = sumCapaianForRows(rows);
     const totalTarget = computeTargetForRows(rows);
     const persen = totalTarget > 0 ? Number(((totalCapaian / totalTarget) * 100).toFixed(1)) : 0;
-    const status = getStatusFromPercent(persen);
+    const status = getStatusFromPercent(persen, totalTarget > 0);
     const clamped = Math.max(0, Math.min(persen, 100));
 
     fill.style.width = `${clamped}%`;
@@ -227,10 +294,10 @@ function renderScoreboard(rows) {
 
     const scoreboard = Object.keys(indicatorGroups).map((indikator) => {
         const indicatorRows = indicatorGroups[indikator];
-        const totalCapaian = indicatorRows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
+        const totalCapaian = sumCapaianForRows(indicatorRows);
         const totalTarget = computeTargetForRows(indicatorRows);
         const persen = totalTarget > 0 ? Number(((totalCapaian / totalTarget) * 100).toFixed(1)) : 0;
-        const status = getStatusFromPercent(persen);
+        const status = getStatusFromPercent(persen, totalTarget > 0);
 
         return {
             indikator,
@@ -264,8 +331,8 @@ function renderComboChart(rows) {
     // Cap 10-12 PKM, sort by capaian desc (reviewer feedback) instead of alphabetical.
     const ranked = Object.keys(grouped).map(pkm => ({
         pkm,
-        target: grouped[pkm].reduce((sum, row) => sum + Number(row.target_bulanan || 0), 0),
-        capaian: grouped[pkm].reduce((sum, row) => sum + Number(row.capaian || 0), 0),
+        target: computeTargetForRows(grouped[pkm]),
+        capaian: sumCapaianForRows(grouped[pkm]),
     })).sort((a, b) => b.capaian - a.capaian).slice(0, 12);
 
     const puskesmasList = ranked.map(r => r.pkm);
@@ -376,7 +443,7 @@ function renderBarChart(rows) {
                 label: 'Skor Gabungan (%)',
                 data: rankRows.map(item => item.skor_gabungan),
                 backgroundColor: rankRows.map(item => {
-                    const status = getStatusFromPercent(item.skor_gabungan);
+                    const status = getStatusFromPercent(item.skor_gabungan, item.has_target);
                     return STATUS_COLOR[status];
                 }),
             }],
@@ -428,6 +495,7 @@ function buildBarChartRows(rows, mode = 'semua') {
     const result = Object.keys(grouped).map((puskesmas) => ({
         puskesmas,
         skor_gabungan: formatCategoryValue(grouped[puskesmas]),
+        has_target: hasTargetData(grouped[puskesmas]),
     })).sort((a, b) => b.skor_gabungan - a.skor_gabungan);
 
     if (mode === 'top5') return result.slice(0, 5);
@@ -450,10 +518,10 @@ function renderIndikatorRankChart(rows) {
 
     const ranked = Object.keys(grouped).map((indikator) => {
         const indicatorRows = grouped[indikator];
-        const totalCapaian = indicatorRows.reduce((sum, row) => sum + Number(row.capaian || 0), 0);
+        const totalCapaian = sumCapaianForRows(indicatorRows);
         const totalTarget = computeTargetForRows(indicatorRows);
         const persen = totalTarget > 0 ? Number(((totalCapaian / totalTarget) * 100).toFixed(1)) : 0;
-        return { indikator, persen };
+        return { indikator, persen, has_target: totalTarget > 0 };
     }).sort((a, b) => b.persen - a.persen);
 
     if (indikatorRankChartInstance) indikatorRankChartInstance.destroy();
@@ -464,7 +532,7 @@ function renderIndikatorRankChart(rows) {
             datasets: [{
                 label: 'Capaian (%)',
                 data: ranked.map(r => r.persen),
-                backgroundColor: ranked.map(r => STATUS_COLOR[getStatusFromPercent(r.persen)]),
+                backgroundColor: ranked.map(r => STATUS_COLOR[getStatusFromPercent(r.persen, r.has_target)]),
             }],
         },
         options: {
@@ -479,8 +547,8 @@ function renderIndikatorRankChart(rows) {
 function renderDoughnut(rows) {
     const doughnutKey = document.getElementById('doughnutFilter')?.value || 'Semua';
     const data = buildDoughnutRows(rows);
-    const selected = data[doughnutKey] || { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0 };
-    const labels = ['Tercapai', 'Perlu Ditingkatkan', 'Belum Tercapai'];
+    const selected = data[doughnutKey] || { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0, '-': 0 };
+    const labels = ['Tercapai', 'Perlu Ditingkatkan', 'Belum Tercapai', '-'];
     const values = labels.map(label => selected[label] || 0);
 
     if (doughnutChartInstance) doughnutChartInstance.destroy();
@@ -496,11 +564,11 @@ function renderDoughnut(rows) {
 
 function buildDoughnutRows(rows) {
     const doughnut = {
-        Semua: { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0 },
+        Semua: { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0, '-': 0 },
     };
 
     getUniqueIndicators(rows).forEach((indikator) => {
-        doughnut[indikator] = { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0 };
+        doughnut[indikator] = { Tercapai: 0, 'Perlu Ditingkatkan': 0, 'Belum Tercapai': 0, '-': 0 };
     });
 
     // Per-indikator breakdown: unchanged, one status per puskesmas::indikator combo.
@@ -513,8 +581,9 @@ function buildDoughnutRows(rows) {
 
     Object.keys(groupedByPuskesmasAndIndic).forEach((key) => {
         const [, indikator] = key.split('::');
-        const persen = formatCategoryValue(groupedByPuskesmasAndIndic[key]);
-        const status = getStatusFromPercent(persen);
+        const group = groupedByPuskesmasAndIndic[key];
+        const persen = formatCategoryValue(group);
+        const status = getStatusFromPercent(persen, hasTargetData(group));
         if (doughnut[indikator]) {
             doughnut[indikator][status] += 1;
         }
@@ -528,8 +597,9 @@ function buildDoughnutRows(rows) {
     }, {});
 
     Object.keys(groupedByPuskesmas).forEach((puskesmas) => {
-        const persen = formatCategoryValue(groupedByPuskesmas[puskesmas]);
-        const status = getStatusFromPercent(persen);
+        const group = groupedByPuskesmas[puskesmas];
+        const persen = formatCategoryValue(group);
+        const status = getStatusFromPercent(persen, hasTargetData(group));
         doughnut.Semua[status] += 1;
     });
 
