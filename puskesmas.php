@@ -87,10 +87,10 @@
                         <label class="filter-control">
                             <span class="filter-label">Periode</span>
                             <select id="pkmPeriodeType" class="filter-select filter-select--small">
+                                <option value="tahunan">Tahunan</option>
                                 <option value="bulanan">Bulanan</option>
                                 <option value="triwulan">Triwulan</option>
                                 <option value="semester">Semester</option>
-                                <option value="tahunan">Tahunan</option>
                             </select>
                         </label>
                         <label class="filter-control">

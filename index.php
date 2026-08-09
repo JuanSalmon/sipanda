@@ -116,10 +116,10 @@
                         <label class="filter-control">
                             <span class="filter-label">Periode</span>
                             <select id="periodeType" class="filter-select filter-select--small">
+                                <option value="tahunan">Tahunan</option>
                                 <option value="bulanan">Bulanan</option>
                                 <option value="triwulan">Triwulan</option>
                                 <option value="semester">Semester</option>
-                                <option value="tahunan">Tahunan</option>
                             </select>
                         </label>
                         <label class="filter-control">
@@ -135,8 +135,8 @@
                     <!-- 4 kartu scoreboard diisi via JS -->
                 </section>
 
-                <!-- <p class="dashboard-section-title">Progress Kabupaten</p> -->
-                <!-- <section class="charts-row" style="grid-template-columns: 1fr;">
+                <p class="dashboard-section-title">Progress Kabupaten</p>
+                <section class="charts-row" style="grid-template-columns: 1fr;">
                     <div class="chart-card progress-kabupaten" id="progressKabupaten">
                         <div class="progress-kabupaten-label">
                             <span>Capaian terhadap Target Tahunan Kabupaten</span>
@@ -150,7 +150,7 @@
                             <span id="progressKabupatenStatus"></span>
                         </div>
                     </div>
-                </section> -->
+                </section>
 
                 <p class="dashboard-section-title">Tren Capaian</p>
                 <section class="charts-row" style="grid-template-columns: 1fr;">
@@ -162,8 +162,8 @@
                     </div>
                 </section>
 
-                <!-- <p class="dashboard-section-title">Target vs Capaian per Puskesmas</p> -->
-                <!-- <section class="charts-row" style="grid-template-columns: 1fr;">
+                <!-- <p class="dashboard-section-title">Target vs Capaian per Puskesmas</p>
+                <section class="charts-row" style="grid-template-columns: 1fr;">
                     <div class="chart-card">
                         <div class="doughnut-header">
                             <h3>Target vs Capaian (Pasien)</h3>
@@ -188,7 +188,7 @@
                     </div>
                 </section>
 
-                <p class="dashboard-section-title">Ranking Indikator</p>
+                <!-- <p class="dashboard-section-title">Ranking Indikator</p>
                 <section class="charts-row" style="grid-template-columns: 1fr;">
                     <div class="chart-card">
                         <h3>Ranking Indikator (Capaian se-Kabupaten)</h3>
@@ -196,7 +196,7 @@
                             <canvas id="indikatorRankChart"></canvas>
                         </div>
                     </div>
-                </section>
+                </section> -->
 
                 <p class="dashboard-section-title">Ranking Puskesmas</p>
                 <section class="charts-row" style="grid-template-columns: 1fr;">

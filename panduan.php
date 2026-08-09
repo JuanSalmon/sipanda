@@ -166,17 +166,9 @@
                         <p>Kartu skor per indikator menampilkan persentase capaian terhadap target
                         beserta status warnanya. Tujuan: melihat capaian tiap indikator secara cepat.</p>
 
-                        <h3>Progress Capaian</h3>
-                        <p>Progress bar per indikator, membandingkan capaian terhadap target tahunan.
-                        Tujuan: mengetahui sejauh mana target telah tercapai.</p>
-
                         <h3>Tren Capaian</h3>
                         <p>Grafik garis perkembangan capaian tiap indikator per bulan. Tujuan: melihat
                         kecenderungan peningkatan atau penurunan capaian dari waktu ke waktu.</p>
-
-                        <h3>Target vs Capaian</h3>
-                        <p>Grafik batang membandingkan capaian dan target tiap Puskesmas berdampingan.
-                        Tujuan: melihat Puskesmas mana yang paling dekat atau jauh dari target.</p>
 
                         <h3>Ranking Indikator &amp; Ranking Puskesmas</h3>
                         <p>Mengurutkan indikator atau Puskesmas berdasarkan persentase capaian

@@ -25,12 +25,12 @@ const MONTH_LABELS = { 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun
 // -> target keliatan setengah, padahal user minta target 1 tahun penuh). Fraction
 // sekarang deterministik dari filter periode yang DIPILIH user (getPeriodFraction),
 // lepas dari baris mana yang kebetulan ada datanya.
+// Target dihitung dari target_tahunan PENUH untuk SEMUA filter, bukan diskalakan
+// per-bulan/triwulan/semester. User minta: walau pilih "Jan 2026", target tetap
+// target tahunan utuh (mis. 92399), bukan 1/12-nya (mis. 7700). Baris capaian Jan
+// tetap dipakai apa adanya -- jadi % capaian = (capaian Jan) / (target 1 tahun)
+// dan kecil di awal tahun, normal gitu.
 function getPeriodFraction(periodeType, periodeValue) {
-    if (periodeValue === 'all' || !periodeValue) return 1;      // Semua Periode -> target 1 tahun penuh
-    if (periodeType === 'tahunan') return 1;                    // tahun spesifik dipilih -> target 1 tahun penuh
-    if (periodeType === 'bulanan') return 1 / 12;                // 1 bulan dipilih -> 1/12 target tahunan
-    if (periodeType === 'triwulan') return 3 / 12;               // 1 triwulan dipilih -> 3/12 target tahunan
-    if (periodeType === 'semester') return 6 / 12;               // 1 semester dipilih -> 6/12 target tahunan
     return 1;
 }
 
@@ -96,7 +96,7 @@ let comboChartInstance = null;
 let currentFilteredRows = [];
 const FILTER_STATE = {
     puskesmas: 'Semua',
-    periodeType: 'bulanan',
+    periodeType: 'tahunan',
     periodeValue: 'all',
 };
 
@@ -164,21 +164,54 @@ function buildPeriodOptions() {
     const type = periodeType.value;
     const knownYears = [...new Set(dashboardRows.map(row => String(row.tahun)))].sort().reverse();
     const fallbackYear = knownYears[0] || '2026';
-    const knownMonths = [...new Set(dashboardRows.map(row => Number(row.bulan)).filter(month => month >= 1 && month <= 12))].sort((a, b) => a - b);
+    // Bulan yang beneran ada datanya, per tahun. Dipakai buat filter opsi dropdown
+    // supaya semester/triwulan yang belum punya data gak muncul (mis. 2026 cma
+    // punya bulan 1-6 -> semester 2 2026 gak boleh tampil walaupun user lagi akses
+    // di bulan Agustus, krn di data belum ada rows untuk bulan 7-12).
+    const monthsByYear = dashboardRows.reduce((acc, row) => {
+        const y = String(row.tahun);
+        acc[y] = acc[y] || new Set();
+        acc[y].add(Number(row.bulan));
+        return acc;
+    }, {});
+    const fallbackMonths = monthsByYear[fallbackYear] || new Set();
+    const maxMonthInYear = (year) => {
+        const set = monthsByYear[year];
+        if (!set || set.size === 0) return 0;
+        return Math.max(...set);
+    };
 
-    let options = [{ value: 'all', label: 'Semua Periode' }];
+    let options = [];
+    if (type !== 'tahunan') options.push({ value: 'all', label: 'Semua Periode' });
 
     if (type === 'bulanan') {
-        const months = knownMonths.length ? knownMonths : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-        months.forEach(month => {
+        const months = Array.from(fallbackMonths).sort((a, b) => a - b);
+        const useMonths = months.length ? months : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        useMonths.forEach(month => {
             options.push({ value: String(month), label: `${MONTH_LABELS[month] || month} ${fallbackYear}` });
         });
     }
     if (type === 'triwulan') {
-        ['tw-1', 'tw-2', 'tw-3', 'tw-4'].forEach((code, index) => options.push({ value: code, label: `Triwulan ${index + 1} (${fallbackYear})` }));
+        const maxMonth = maxMonthInYear(fallbackYear);
+        [
+            { code: 'tw-1', endMonth: 3 },
+            { code: 'tw-2', endMonth: 6 },
+            { code: 'tw-3', endMonth: 9 },
+            { code: 'tw-4', endMonth: 12 },
+        ].forEach((tw) => {
+            if (maxMonth > 0 && tw.endMonth > maxMonth) return;
+            options.push({ value: tw.code, label: `Triwulan ${tw.code.slice(-1)} (${fallbackYear})` });
+        });
     }
     if (type === 'semester') {
-        ['sem-1', 'sem-2'].forEach((code, index) => options.push({ value: code, label: `Semester ${index + 1} (${fallbackYear})` }));
+        const maxMonth = maxMonthInYear(fallbackYear);
+        [
+            { code: 'sem-1', endMonth: 6 },
+            { code: 'sem-2', endMonth: 12 },
+        ].forEach((sem) => {
+            if (maxMonth > 0 && sem.endMonth > maxMonth) return;
+            options.push({ value: sem.code, label: `Semester ${sem.code.slice(-1)} (${fallbackYear})` });
+        });
     }
     if (type === 'tahunan') {
         const years = knownYears.length ? knownYears : ['2026', '2025', '2024'];
@@ -186,7 +219,14 @@ function buildPeriodOptions() {
     }
 
     periodeValue.innerHTML = options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('');
-    FILTER_STATE.periodeValue = options.some(opt => opt.value === FILTER_STATE.periodeValue) ? FILTER_STATE.periodeValue : 'all';
+    // Default value "Tahun terbaru" saat pertama load dengan filter Tahunan --
+    // kalau FILTER_STATE.periodeValue masih 'all' (default dari konstanta), pilih
+    // th-<tahunTerbaru> secara otomatis biar langsung tampil data tahun sekarang.
+    if (type === 'tahunan' && FILTER_STATE.periodeValue === 'all' && knownYears.length) {
+        FILTER_STATE.periodeValue = `th-${knownYears[0]}`;
+    } else {
+        FILTER_STATE.periodeValue = options.some(opt => opt.value === FILTER_STATE.periodeValue) ? FILTER_STATE.periodeValue : 'all';
+    }
     periodeValue.value = FILTER_STATE.periodeValue;
 }
 

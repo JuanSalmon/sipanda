@@ -16,7 +16,7 @@ const MONTH_LABELS = { 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'Mei', 6: 'Jun
 
 let allRows = [];
 let pkmTrendChartInstance = null;
-const PKM_FILTER_STATE = { periodeType: 'bulanan', periodeValue: 'all' };
+const PKM_FILTER_STATE = { periodeType: 'tahunan', periodeValue: 'all' };
 
 function getIndicatorColor(indikator, indicatorList) {
     if (INDIKATOR_COLOR[indikator]) return INDIKATOR_COLOR[indikator];
@@ -75,16 +75,11 @@ function hasTargetData(rows) {
     return computeTargetForRows(rows) > 0;
 }
 
-// Bug 4 fix: fraction deterministik dari periode DIPILIH user (PKM_FILTER_STATE),
-// bukan dari berapa bulan yang kebetulan punya baris data. Lihat catatan sama di
-// dashboard.js -- target_tahunan konstan per puskesmas+indikator+tahun, tervalidasi
-// cocok dengan rekap manual.
+// Target dihitung dari target_tahunan PENUH untuk SEMUA filter, bukan diskalakan
+// per-bulan/triwulan/semester. Sama seperti dashboard.js: walau pilih "Jan 2026",
+// target tetap target tahunan utuh (bukan 1/12-nya). Lihat getPeriodFraction di
+// dashboard.js untuk penjelasan lengkap.
 function getPeriodFraction(periodeType, periodeValue) {
-    if (periodeValue === 'all' || !periodeValue) return 1;
-    if (periodeType === 'tahunan') return 1;
-    if (periodeType === 'bulanan') return 1 / 12;
-    if (periodeType === 'triwulan') return 3 / 12;
-    if (periodeType === 'semester') return 6 / 12;
     return 1;
 }
 
@@ -179,18 +174,50 @@ function buildPeriodOptions() {
     const periodeValue = document.getElementById('pkmPeriodeValue');
     const knownYears = [...new Set(allRows.map(row => String(row.tahun)))].sort().reverse();
     const fallbackYear = knownYears[0] || '2026';
-    const knownMonths = [...new Set(allRows.map(row => Number(row.bulan)).filter(m => m >= 1 && m <= 12))].sort((a, b) => a - b);
+    // Bulan yang beneran ada datanya, per tahun. Dipakai buat filter opsi dropdown
+    // supaya semester/triwulan/bulan yang belum punya data gak muncul (mis. 2026
+    // cma punya bulan 1-6 -> semester 2 2026 gak boleh tampil).
+    const monthsByYear = allRows.reduce((acc, row) => {
+        const y = String(row.tahun);
+        acc[y] = acc[y] || new Set();
+        acc[y].add(Number(row.bulan));
+        return acc;
+    }, {});
+    const fallbackMonths = monthsByYear[fallbackYear] || new Set();
+    const maxMonthInYear = (year) => {
+        const set = monthsByYear[year];
+        if (!set || set.size === 0) return 0;
+        return Math.max(...set);
+    };
 
-    let options = [{ value: 'all', label: 'Semua Periode' }];
+    let options = [];
+    if (type !== 'tahunan') options.push({ value: 'all', label: 'Semua Periode' });
     if (type === 'bulanan') {
-        const months = knownMonths.length ? knownMonths : [1,2,3,4,5,6,7,8,9,10,11,12];
-        months.forEach(m => options.push({ value: String(m), label: `${MONTH_LABELS[m] || m} ${fallbackYear}` }));
+        const months = Array.from(fallbackMonths).sort((a, b) => a - b);
+        const useMonths = months.length ? months : [1,2,3,4,5,6,7,8,9,10,11,12];
+        useMonths.forEach(m => options.push({ value: String(m), label: `${MONTH_LABELS[m] || m} ${fallbackYear}` }));
     }
     if (type === 'triwulan') {
-        ['tw-1','tw-2','tw-3','tw-4'].forEach((code, i) => options.push({ value: code, label: `Triwulan ${i + 1} (${fallbackYear})` }));
+        const maxMonth = maxMonthInYear(fallbackYear);
+        [
+            { code: 'tw-1', endMonth: 3 },
+            { code: 'tw-2', endMonth: 6 },
+            { code: 'tw-3', endMonth: 9 },
+            { code: 'tw-4', endMonth: 12 },
+        ].forEach((tw) => {
+            if (maxMonth > 0 && tw.endMonth > maxMonth) return;
+            options.push({ value: tw.code, label: `Triwulan ${tw.code.slice(-1)} (${fallbackYear})` });
+        });
     }
     if (type === 'semester') {
-        ['sem-1','sem-2'].forEach((code, i) => options.push({ value: code, label: `Semester ${i + 1} (${fallbackYear})` }));
+        const maxMonth = maxMonthInYear(fallbackYear);
+        [
+            { code: 'sem-1', endMonth: 6 },
+            { code: 'sem-2', endMonth: 12 },
+        ].forEach((sem) => {
+            if (maxMonth > 0 && sem.endMonth > maxMonth) return;
+            options.push({ value: sem.code, label: `Semester ${sem.code.slice(-1)} (${fallbackYear})` });
+        });
     }
     if (type === 'tahunan') {
         const years = knownYears.length ? knownYears : ['2026','2025','2024'];
@@ -198,7 +225,13 @@ function buildPeriodOptions() {
     }
 
     periodeValue.innerHTML = options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
-    PKM_FILTER_STATE.periodeValue = options.some(o => o.value === PKM_FILTER_STATE.periodeValue) ? PKM_FILTER_STATE.periodeValue : 'all';
+    // Default value "Tahun terbaru" saat pertama load dengan filter Tahunan --
+    // lihat komentar sama di dashboard.js buildPeriodOptions().
+    if (type === 'tahunan' && PKM_FILTER_STATE.periodeValue === 'all' && knownYears.length) {
+        PKM_FILTER_STATE.periodeValue = `th-${knownYears[0]}`;
+    } else {
+        PKM_FILTER_STATE.periodeValue = options.some(o => o.value === PKM_FILTER_STATE.periodeValue) ? PKM_FILTER_STATE.periodeValue : 'all';
+    }
     periodeValue.value = PKM_FILTER_STATE.periodeValue;
 }
 
