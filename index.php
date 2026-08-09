@@ -82,6 +82,10 @@
             </nav>
 
             <div class="sidebar-footer">
+                <a class="sidebar-footer-link" href="panduan.php" title="Panduan">
+                    <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 1.7-2.4 3.2"/><line x1="12" y1="17" x2="12" y2="17.1"/></svg></span>
+                    <span class="sidebar-label">Panduan</span>
+                </a>
                 <a class="sidebar-footer-link" href="#" data-open-login title="Login Admin">
                     <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
                     <span class="sidebar-label">Login Admin</span>
@@ -95,7 +99,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
                 </button>
                 <div class="brand">SIPANDA <span>PTM</span></div>
-                <!-- <div class="brand-sub">Sistem Informasi Pemantauan Data — Penyakit Tidak Menular</div> -->
+                <div class="brand-sub">Sistem Informasi Pemantauan Data — Penyakit Tidak Menular</div>
             </header>
 
             <main class="dashboard" id="top">
@@ -131,8 +135,8 @@
                     <!-- 4 kartu scoreboard diisi via JS -->
                 </section>
 
-                <p class="dashboard-section-title">Progress Kabupaten</p>
-                <section class="charts-row" style="grid-template-columns: 1fr;">
+                <!-- <p class="dashboard-section-title">Progress Kabupaten</p> -->
+                <!-- <section class="charts-row" style="grid-template-columns: 1fr;">
                     <div class="chart-card progress-kabupaten" id="progressKabupaten">
                         <div class="progress-kabupaten-label">
                             <span>Capaian terhadap Target Tahunan Kabupaten</span>
@@ -146,7 +150,7 @@
                             <span id="progressKabupatenStatus"></span>
                         </div>
                     </div>
-                </section>
+                </section> -->
 
                 <p class="dashboard-section-title">Tren Capaian</p>
                 <section class="charts-row" style="grid-template-columns: 1fr;">
@@ -158,8 +162,8 @@
                     </div>
                 </section>
 
-                <p class="dashboard-section-title">Target vs Capaian per Puskesmas</p>
-                <section class="charts-row" style="grid-template-columns: 1fr;">
+                <!-- <p class="dashboard-section-title">Target vs Capaian per Puskesmas</p> -->
+                <!-- <section class="charts-row" style="grid-template-columns: 1fr;">
                     <div class="chart-card">
                         <div class="doughnut-header">
                             <h3>Target vs Capaian (Pasien)</h3>
@@ -169,7 +173,7 @@
                             <canvas id="comboChart"></canvas>
                         </div>
                     </div>
-                </section>
+                </section> -->
 
                 <p class="dashboard-section-title">Distribusi Status</p>
                 <section class="charts-row" style="grid-template-columns: 1fr;">

@@ -30,7 +30,7 @@
             <nav class="sidebar-nav">
                 <a class="sidebar-link" href="index.php" title="Dashboard Kabupaten">
                     <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></span>
-                    <span class="sidebar-label">Dashboard Kabupaten</span>
+                    <span class="sidebar-label">Dashboard</span>
                 </a>
 
                 <a class="sidebar-link is-active" href="puskesmas.php" title="Dashboard Puskesmas">
@@ -55,6 +55,10 @@
             </nav>
 
             <div class="sidebar-footer">
+                <a class="sidebar-footer-link" href="panduan.php" title="Panduan">
+                    <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 1.7-2.4 3.2"/><line x1="12" y1="17" x2="12" y2="17.1"/></svg></span>
+                    <span class="sidebar-label">Panduan</span>
+                </a>
                 <a class="sidebar-footer-link" href="#" data-open-login title="Login Admin">
                     <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
                     <span class="sidebar-label">Login Admin</span>
