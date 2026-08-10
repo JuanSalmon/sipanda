@@ -63,7 +63,7 @@ $totalBelumDibaca = count(array_filter($items, fn($r) => (int) $r['dibaca'] === 
                 <table>
                     <thead>
                     <tr>
-                        <th>Tanggal</th><th>Nama</th><th>Email</th><th>Pesan</th><th>Status</th><th></th>
+                        <th>Tanggal</th><th>Nama</th><th>Email</th><th>Puskesmas</th><th>Pesan</th><th>Status</th><th></th>
                     </tr>
                     </thead>
                     <tbody>
@@ -72,6 +72,7 @@ $totalBelumDibaca = count(array_filter($items, fn($r) => (int) $r['dibaca'] === 
                         <td><?= htmlspecialchars($r['dibuat_pada']) ?></td>
                         <td><?= htmlspecialchars($r['nama']) ?></td>
                         <td><?= $r['email'] ? htmlspecialchars($r['email']) : '<span style="color:#999">-</span>' ?></td>
+                        <td><?= $r['puskesmas_asal'] ? htmlspecialchars(ucwords(strtolower($r['puskesmas_asal']))) : '<span style="color:#999">Umum</span>' ?></td>
                         <td style="white-space:pre-wrap;max-width:360px"><?= htmlspecialchars($r['pesan']) ?></td>
                         <td>
                             <?php if ((int)$r['dibaca'] === 1): ?>

@@ -21,3 +21,10 @@ function requireLogin(): void {
         exit;
     }
 }
+
+function logout(): void {
+    session_unset();
+    session_destroy();
+    header('Location: login.php');
+    exit;
+}

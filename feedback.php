@@ -2,12 +2,18 @@
 // SIPANDA PTM - Umpan Balik (publik)
 require_once __DIR__ . '/config/database.php';
 
+const DAFTAR_PUSKESMAS = [
+    'BAA', 'BATUTUA', 'BUSALANGGA', 'DELHA', 'EAHUN', 'FEAPOPI',
+    'KORBAFO', 'NDAO', 'OELABA', 'OELE', 'SONIMANU', 'SOTIMORI',
+];
+
 $sukses = false;
 $errorMsg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nama = trim($_POST['nama'] ?? '');
     $email = trim($_POST['email'] ?? '');
+    $puskesmasAsal = trim($_POST['puskesmas_asal'] ?? '');
     $pesan = trim($_POST['pesan'] ?? '');
 
     if ($nama === '' || $pesan === '') {
@@ -16,11 +22,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errorMsg = 'Nama atau pesan terlalu panjang.';
     } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errorMsg = 'Format email tidak valid.';
+    } elseif ($puskesmasAsal !== '' && !in_array($puskesmasAsal, DAFTAR_PUSKESMAS, true)) {
+        $errorMsg = 'Puskesmas asal tidak valid.';
     } else {
         try {
             $pdo = getDB();
-            $stmt = $pdo->prepare('INSERT INTO feedback (nama, email, pesan) VALUES (?, ?, ?)');
-            $stmt->execute([$nama, $email !== '' ? $email : null, $pesan]);
+            $stmt = $pdo->prepare('INSERT INTO feedback (nama, email, puskesmas_asal, pesan) VALUES (?, ?, ?, ?)');
+            $stmt->execute([$nama, $email !== '' ? $email : null, $puskesmasAsal !== '' ? $puskesmasAsal : null, $pesan]);
             $sukses = true;
         } catch (PDOException $e) {
             $errorMsg = 'Gagal mengirim umpan balik. Coba lagi nanti.';
@@ -99,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </span>
                         <div>
                             <h2>Umpan Balik</h2>
-                            <p>Punya masukan, pertanyaan, atau laporan soal data di dashboard ini? Tim kami akan membacanya.</p>
+                            <p>Punya masukan, pertanyaan, atau laporan soal data di dashboard ini? Admin akan membacanya.</p>
                         </div>
                     </div>
 
@@ -128,8 +136,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <div class="fb-field">
                                     <label class="fb-label" for="fbNama">Nama <span class="fb-req">*</span></label>
                                     <input class="fb-input" type="text" id="fbNama" name="nama" required maxlength="100"
-                                           placeholder="Nama kamu"
-                                           value="<?= htmlspecialchars($_POST['nama'] ?? '') ?>">
+                                        placeholder="Nama kamu"
+                                        value="<?= htmlspecialchars($_POST['nama'] ?? '') ?>">
                                 </div>
                                 <div class="fb-field">
                                     <label class="fb-label" for="fbEmail">Email <span class="fb-optional">(opsional)</span></label>
@@ -138,9 +146,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                            value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
                                 </div>
                                 <div class="fb-field">
-                                    <label class="fb-label" for="fbPesan">Pesan <span class="fb-req">*</span></label>
+                                    <label class="fb-label" for="fbPuskesmas">Asal Puskesmas <span class="fb-optional">(opsional)</span></label>
+                                    <select class="fb-input" id="fbPuskesmas" name="puskesmas_asal">
+                                        <option value="">— Umum / tidak terkait Puskesmas tertentu —</option>
+                                        <?php foreach (DAFTAR_PUSKESMAS as $pk): ?>
+                                            <option value="<?= htmlspecialchars($pk) ?>" <?= ($_POST['puskesmas_asal'] ?? '') === $pk ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars(ucwords(strtolower($pk))) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="fb-field">
+                                    <label class="fb-label" for="fbPesan">Saran <span class="fb-req">*</span></label>
                                     <textarea class="fb-textarea" id="fbPesan" name="pesan" required maxlength="3000" rows="5"
-                                              placeholder="Tulis masukan, pertanyaan, atau laporan kamu di sini..."><?= htmlspecialchars($_POST['pesan'] ?? '') ?></textarea>
+                                            placeholder="Tulis saran kamu untuk dashboard ini di sini..."><?= htmlspecialchars($_POST['pesan'] ?? '') ?></textarea>
                                     <div class="fb-counter" id="fbCounter">0 / 3000</div>
                                 </div>
                                 <button type="submit" class="fb-submit">
