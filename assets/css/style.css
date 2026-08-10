@@ -289,6 +289,17 @@ body {
 .progress-kabupaten-label strong { color: var(--primary-deep); font-size: 15px; }
 
 /* Ranking toggle */
+.rank-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rank-indikator-filter {
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    background: var(--card);
+    color: var(--text);
+    min-width: 160px;
+}
 .rank-toggle { display: flex; flex-wrap: wrap; gap: 6px; }
 .rank-toggle button {
     padding: 5px 12px;

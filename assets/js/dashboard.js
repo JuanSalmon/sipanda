@@ -87,6 +87,7 @@ function sumCapaianForRows(rows) {
 }
 
 let rankMode = 'semua';
+let rankIndikator = 'Semua';
 
 let dashboardRows = [];
 let doughnutChartInstance = null;
@@ -121,6 +122,7 @@ async function loadDashboard() {
 
     setupFilterControls();
     setupRankToggle();
+    syncRankIndikatorFilter();
     syncDoughnutFilter();
     syncComboFilter();
     renderDashboard();
@@ -410,6 +412,17 @@ function renderComboChart(rows) {
     });
 }
 
+function syncRankIndikatorFilter() {
+    const select = document.getElementById('rankIndikatorFilter');
+    if (!select) return;
+    const keys = ['Semua', ...getUniqueIndicators()];
+    select.innerHTML = keys.map(key => `<option value="${key}">${key === 'Semua' ? 'Semua Indikator' : key}</option>`).join('');
+    select.addEventListener('change', () => {
+        rankIndikator = select.value;
+        renderBarChart(currentFilteredRows);
+    });
+}
+
 function syncComboFilter() {
     const select = document.getElementById('comboFilter');
     if (!select) return;
@@ -472,7 +485,8 @@ function buildLineChartRows(rows) {
 }
 
 function renderBarChart(rows) {
-    const rankRows = buildBarChartRows(rows, rankMode);
+    const scoped = rankIndikator === 'Semua' ? rows : rows.filter(row => row.indikator === rankIndikator);
+    const rankRows = buildBarChartRows(scoped, rankMode);
     if (barChartInstance) barChartInstance.destroy();
 
     barChartInstance = new Chart(document.getElementById('barChart'), {

@@ -39,6 +39,7 @@ $pctError = 100 - $pctValid;
         </span>
         <div class="sa-nav-right">
             <span>Halo, <?= htmlspecialchars($_SESSION['admin_nama']) ?></span>
+            <a href="feedback.php">Umpan Balik</a>
             <a href="../index.php">Lihat Dashboard Publik</a>
             <a href="logout.php" class="sa-logout">Keluar</a>
         </div>

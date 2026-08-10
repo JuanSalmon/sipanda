@@ -45,7 +45,7 @@
                         <span class="sidebar-caret">›</span>
                     </button>
                     <div class="sidebar-submenu"><div>
-                        <a href="#pkmInfo" data-target="pkmInfo">Info Puskesmas</a>
+                        <!-- <a href="#pkmInfo" data-target="pkmInfo">Info Puskesmas</a> -->
                         <a href="#pkmKpi" data-target="pkmKpi">KPI Indikator</a>
                         <a href="#pkmProgress" data-target="pkmProgress">Progress Capaian</a>
                         <a href="#pkmTrend" data-target="pkmTrend">Tren Bulanan</a>
@@ -58,6 +58,10 @@
                 <a class="sidebar-footer-link" href="panduan.php" title="Panduan">
                     <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 1.7-2.4 3.2"/><line x1="12" y1="17" x2="12" y2="17.1"/></svg></span>
                     <span class="sidebar-label">Panduan</span>
+                </a>
+                <a class="sidebar-footer-link" href="feedback.php" title="Umpan Balik">
+                    <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span>
+                    <span class="sidebar-label">Umpan Balik</span>
                 </a>
                 <a class="sidebar-footer-link" href="#" data-open-login title="Login Admin">
                     <span class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
@@ -102,12 +106,12 @@
                     </div>
                 </section>
 
-                <p class="dashboard-section-title" id="pkmInfo">Info Puskesmas</p>
+                <!-- <p class="dashboard-section-title" id="pkmInfo">Info Puskesmas</p>
                 <section class="charts-row" style="grid-template-columns: 1fr;">
                     <div class="chart-card" id="pkmInfoCard">
                         <!-- diisi via JS -->
-                    </div>
-                </section>
+                    <!-- </div> -->
+                <!-- </section> -->
 
                 <p class="dashboard-section-title" id="pkmKpi">KPI Indikator</p>
                 <section class="scoreboards" id="pkmScoreboards">
