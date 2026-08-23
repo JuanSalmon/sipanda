@@ -57,8 +57,8 @@
                     </button>
                     <div class="sidebar-submenu"><div>
                         <a href="#lineChart" data-target="lineChart">Tren Capaian</a>
-                        <a href="#comboChart" data-target="comboChart">Target vs Capaian</a>
-                        <a href="#indikatorRankChart" data-target="indikatorRankChart">Ranking Indikator</a>
+                        <!-- <a href="#comboChart" data-target="comboChart">Target vs Capaian</a>
+                        <a href="#indikatorRankChart" data-target="indikatorRankChart">Ranking Indikator</a> -->
                         <a href="#barChart" data-target="barChart">Ranking Puskesmas</a>
                         <a href="#doughnutChart" data-target="doughnutChart">Distribusi Status</a>
                     </div></div>
